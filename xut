@@ -1,0 +1,140 @@
+#!/bin/sh
+#setting default configuration
+conf_default_repo=https://github.com/void-linux/void-packages.git
+conf_extra_repo=https://codeberg.org/mobinmob/abyss-packages.git
+conf_default_workdir="${HOME}/.xut"
+#colours
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+yellow=$(tput setaf 3)
+reset_colour=$(tput sgr0)
+#define a log filename
+log_file=""$HOME/"$(basename "$0")_$(date +"%Y%m%d_%T")".log
+#set default operation variables
+op_log=0
+op_sync=0
+op_zap=0
+
+error() {
+	printf "(!!) Error: %40s\n" "${red} $* ${reset_colour}" && exit 1 
+}
+
+warn()  { 
+	printf "(~~) Warning: %40s\n" "${yellow} $* ${reset_colour}" 
+}
+
+info() {
+	printf "(~>) Info: %40s\n" "${green} $* ${reset_colour}"
+}
+
+usage() {
+	cat <<-EOH
+	Usage: $(basename "$0") [options]
+
+	*x*tra *u*ser *t*emplates
+	Build and install packages for Void Linux, from the abyss-packages unofficial repo
+	
+	OPTIONS
+	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
+	 -l	Keep a log file under $HOME.
+	 -z	Remove the bootstrap packages and the masterdir with <xbps-src zap>. 
+	 -c	Clean the masterdir with <xbps-src clean>.
+	 -s	Sync the repos.
+	 -h	Display this usage information.
+	EOH
+}
+
+retrieve_repos() {
+	info Cloning upstream void-packages-repo...
+	git clone --depth 1  "$conf_default_repo" "$conf_default_workdir"/default || error Cannot clone the upstream repo.
+	info Succesfully cloned the upstream repo into "${conf_default_workdir}"!
+	info Cloning Cloning the extra repo...
+	git clone --depth 1  "$conf_extra_repo"  "$conf_default_workdir"/abyss||  error Cannot clone the extra repo.
+	info Succesfully cloned the upstream repo into "${conf_default_workdir}"!
+} 
+sync_repos() {
+	info Syncing lastest changes from the upstream void-packages-repo...
+	cd "$conf_default_workdir"/default || error Cannot change to the "$conf_default_workdir"/default directory
+	git pull "$conf_default_repo" master || error Cannot sync to the the upstream repo.
+	info Succesfully synced with the upstream repo into "${conf_default_workdir}"!
+	info Syncing latest changes from the extra repo...
+	cd "$conf_default_workdir"/abyss || Cannot change to the "$conf_default_workdir"/default directory
+	git pull "$conf_extra_repo" main || error Cannot sync to the the extra repo. 
+	info Succesfully synced with the abyss-packages repo into "${conf_default_workdir}"!
+}
+
+integrate_xtra_templates() {
+	cp -r "$conf_default_workdir"/abyss/* "$conf_default_workdir"/default/srcpkgs/ || error Cannot copy templates...
+}
+
+xbps_bootstrap() {
+	cd "$conf_default_workdir"/default - && ./xbps-src binary-bootstrap
+}
+
+xbps_clean() {
+	cd "$conf_default_workdir"/default - && ./xbps-src clean
+}
+
+xbps_zap() {
+	cd "$conf_default_workdir"/default - && ./xbps-src zap
+}
+
+install_packages() {
+	package_list="$(echo "$packages" | tr ',' ' ')"
+	export package_list="$package_list"
+	[ -z "$package_list" ] && error Nothing to do...
+	for i in $package_list; do 
+		cd "$conf_default_workdir"/default -  && ./xbps-src pkg "$i"
+	done
+	xi $package_list
+}
+
+main() {
+info Full comand given is [xut "$showargs"].
+#Get the configuration from the conf file if it exists.
+if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
+	. "$XDG_CONFIG_HOME"/.xutconf
+	info Using configuration from "$XDG_CONFIG_HOME"/.xutconf.
+elif [ -e "$HOME"/.xutconf ]; then
+	. "$HOME"/.xutconf
+	info Using configuration from "$HOME"/.xutconf.
+else warn Using the default configuration.
+fi
+# Check for needed dirs.
+[ ! -e "$conf_default_workdir" ] && mkdir -v "$conf_default_workdir" 
+# clean or zap repos before other ops
+[ "$op_clean" = 1 ] && xbps_clean
+[ "$op_zap" = 1 ] && xbps_zap
+# intialise if needed (first run or after zaping)
+for i in abyss default; do 
+	if [ ! -d "$conf_default_workdir"/"$i"/.git ]; then
+		rm -rf "${conf_default_workdir:-${HOME}/.xut/}*"
+		retrieve_repos; fi
+done
+[ "$op_sync" = 1 ] && sync_repos
+xbps_bootstrap
+integrate_xtra_templates
+[ -n "$packages" ] && install_packages
+}
+
+
+while getopts "si:hlzc" OPTION; do
+	case "${OPTION}" in
+		s) op_sync=1;;
+		i) packages="$OPTARG";;
+		l) op_log=1;;
+		z) op_zap=1;;
+		c) op_clean=1;;
+		h) usage ; exit 0;;
+		*) usage ; exit 0;;
+	esac
+done
+# Capture all the arguments given
+showargs="$(printf "%s" "$*")"
+shift $((OPTIND - 1))
+[ "$OPTIND" -eq 1 ] && usage && exit
+if [ "$op_log" = 1 ]; then
+	main "$@" 2>&1 | tee -- "$log_file"
+else
+	main "$@"
+fi
