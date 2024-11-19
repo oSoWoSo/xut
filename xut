@@ -20,8 +20,8 @@ red=$(tput setaf 1)
 yellow=$(tput setaf 3)
 reset_colour=$(tput sgr0)
 #define a log filename
-conf_log_dir="conf_workdir"
-log_file="$conf_log_dir"/"$(basename "$0")_$(date +"%Y%m%d_%T")".log
+conf_log_dir="$conf_workdir"
+log_file="$conf_log_dir/$(basename $0)_$(date +"%Y%m%d_%T")".log
 #set default operation variables to 0
 op_log=0
 op_sync=0
