@@ -47,7 +47,7 @@ xut [options]
 | ---- | ---- |
 | -s | sync |
 | -i <package1,package2> | build and install a (comma-seperated) list of packages. |
-| -l | Keep a log file under $HOME. |
+| -l | Keep a log file (in the working directory by default) |
 | -x | Give xbps-src commands.  |
 | -s | Sync the repos. |
 | -h | Display this usage information. |

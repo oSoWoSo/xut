@@ -47,8 +47,8 @@ usage() {
 	
 	OPTIONS
 	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
-	 -l	Keep a log file under $HOME.
-	 -x Give xbps-src commands.
+	 -l	Keep a log file under $conf_log_dir.
+	 -x	Give xbps-src commands.
 	 -s	Sync the repos.
 	 -h	Display this usage information.
 	EOH
