@@ -19,7 +19,12 @@ and installs sw with a single command.
 ### Install and setup
 1. Download, the `xut` script into the path and make it executable.
 2. Use the xutconf.sample if you want to modify configuration.
-3. The script depends on `sh`,`xbps`, `git` and the `xi` tool from the *xtools* package which requires a working sudo configuration.
+3. The script depends on:
+	- `sh`,
+	- `xbps`,
+	- `git`,
+	- the `xi` tool from the *xtools* package which requires a working `sudo` configuration,
+	- the `tput` tool from *ncurses*.
 
 
 
