@@ -13,15 +13,16 @@
 #setting default configuration
 conf_default_repo=https://github.com/void-linux/void-packages.git
 conf_repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
-conf_default_workdir="${HOME}/.xut"
+conf_workdir="${HOME}/.xut"
 #colours
 green=$(tput setaf 2)
 red=$(tput setaf 1)
 yellow=$(tput setaf 3)
 reset_colour=$(tput sgr0)
 #define a log filename
-log_file=""$HOME/"$(basename "$0")_$(date +"%Y%m%d_%T")".log
-#set default operation variables
+conf_log_dir="conf_workdir"
+log_file="$conf_log_dir"/"$(basename "$0")_$(date +"%Y%m%d_%T")".log
+#set default operation variables to 0
 op_log=0
 op_sync=0
 op_zap=0
@@ -57,38 +58,38 @@ usage() {
 
 retrieve_repos() {
 	info Cloning upstream void-packages-repo...
-	git clone --depth 1  "$conf_default_repo" "$conf_default_workdir"/default || error Cannot clone the upstream repo.
-	info Succesfully cloned the upstream repo into "${conf_default_workdir}"!
+	git clone --depth 1  "$conf_default_repo" "$conf_workdir"/default || error Cannot clone the upstream repo.
+	info Succesfully cloned the upstream repo into "${conf_workdir}"!
 	info Cloning Cloning the extra repo...
-	git clone --depth 1  "$conf_repo_abyss_packages"  "$conf_default_workdir"/abyss-packages||  error Cannot clone the extra repo.
-	info Succesfully cloned the upstream repo into "${conf_default_workdir}"!
+	git clone --depth 1  "$conf_repo_abyss_packages"  "$conf_workdir"/abyss-packages||  error Cannot clone the extra repo.
+	info Succesfully cloned the upstream repo into "${conf_workdir}"!
 } 
 sync_repos() {
 	info Syncing lastest changes from the upstream void-packages-repo...
-	cd "$conf_default_workdir"/default || error Cannot change to the "$conf_default_workdir"/default directory
+	cd "$conf_workdir"/default || error Cannot change to the "$conf_workdir"/default directory
 	git pull "$conf_default_repo" master || error Cannot sync to the the upstream repo.
-	info Succesfully synced with the upstream repo into "${conf_default_workdir}"!
+	info Succesfully synced with the upstream repo into "${conf_workdir}"!
 	info Syncing latest changes from the extra repo...
-	cd "$conf_default_workdir"/abyss-packages || Cannot change to the "$conf_default_workdir"/default directory
+	cd "$conf_workdir"/abyss-packages || Cannot change to the "$conf_workdir"/default directory
 	git pull "$conf_repo_abyss_packages" main || error Cannot sync to the the extra repo. 
-	info Succesfully synced with the abyss-packages repo into "${conf_default_workdir}"!
+	info Succesfully synced with the abyss-packages repo into "${conf_workdir}"!
 }
 
 integrate_xtra_templates() {
-	cp -r "$conf_default_workdir"/abyss-packages/* "$conf_default_workdir"/default/srcpkgs/ || error Cannot copy templates...
+	cp -r "$conf_workdir"/abyss-packages/* "$conf_workdir"/default/srcpkgs/ || error Cannot copy templates...
 }
 
 
 xbps_bootstrap() {
-	cd "$conf_default_workdir"/default - && ./xbps-src binary-bootstrap
+	cd "$conf_workdir"/default - && ./xbps-src binary-bootstrap
 }
 
 xbps_clean() {
-	cd "$conf_default_workdir"/default - && ./xbps-src clean
+	cd "$conf_workdir"/default - && ./xbps-src clean
 }
 
 xbps_zap() {
-	cd "$conf_default_workdir"/default - && ./xbps-src zap
+	cd "$conf_workdir"/default - && ./xbps-src zap
 }
 
 install_packages() {
@@ -96,7 +97,7 @@ install_packages() {
 	export package_list="$package_list"
 	[ -z "$package_list" ] && error Nothing to do...
 	for i in $package_list; do 
-		cd "$conf_default_workdir"/default -  && ./xbps-src pkg "$i"
+		cd "$conf_workdir"/default -  && ./xbps-src pkg "$i"
 	done
 	# shellcheck disable=SC2086
 	xi $package_list
@@ -104,6 +105,8 @@ install_packages() {
 
 main() {
 #program execution starts here
+# Check for root
+[ "$(id -u)" -eq 0 ] && error Please run the program as a user!
 info Full comand given is [xut "$showargs"].
 #Get the configuration from the conf file if it exists.
 # shellcheck disable=SC1091
@@ -116,19 +119,19 @@ elif [ -e "$HOME"/.xutconf ]; then
 else warn Using the default configuration.
 fi
 # Check for needed dirs.
-[ ! -e "$conf_default_workdir" ] && mkdir -v "$conf_default_workdir" 
+[ ! -e "$conf_workdir" ] && mkdir -v "$conf_workdir" 
 # clean or zap repos before other ops
 [ "$op_clean" = 1 ] && xbps_clean
 [ "$op_zap" = 1 ] && xbps_zap
 # intialise if needed (first run or after zaping)
 for i in abyss-packages default; do 
-	if [ ! -d "$conf_default_workdir"/"$i"/.git ]; then
-		rm -rf "${conf_default_workdir:-${HOME}/.xut/}*"
+	if [ ! -d "$conf_workdir"/"$i"/.git ]; then
+		rm -rf "${conf_workdir:-${HOME}/.xut/}*"
 		retrieve_repos; fi
 done
 [ "$op_sync" = 1 ] && sync_repos
 #Boostrap if masterdir is not populated
-[ -e "$conf_default_workdir"/default/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ] && xbps_bootstrap
+[ -e "$conf_workdir"/default/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ] && xbps_bootstrap
 #all template dirs are copied 
 integrate_xtra_templates
 [ -n "$packages" ] && install_packages

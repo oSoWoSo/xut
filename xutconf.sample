@@ -3,12 +3,14 @@
 ## they should copy, modify and rename the file in $XDG_CONFIG_HOME/.xutconf or $HOME"/.xutconf
 ## Both locations are searched.
 
-#$conf_default_repo is the default repo for the upstream templates and the xbps-src
+#conf_default_repo is the default repo for the upstream templates and the xbps-src
 conf_default_repo=https://github.com/void-linux/void-packages.git
 
-#$conf_repo_abyss_packages is the the location for the abyss-packages repo 
+#conf_repo_abyss_packages is the the location for the abyss-packages repo 
 conf_repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
 
-#conf_default_workdir is the default directory where repos are being downloaded
+#conf_workdir is the default directory where repos are being downloaded
 #into and the actuall operations take place
-conf_default_workdir="${HOME}/.xut"
+conf_workdir="${HOME}/.xut"
+#conf_log_dir is where the log files will reside.
+conf_log_dir="$conf_workdir"
