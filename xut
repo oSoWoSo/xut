@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 ## Copyright (c) 2024 by mobinmob  <mobinmob@disroot.org
 ##This program is free software: you can redistribute it and/or modify it under
 ## the terms of the GNU General Public License as published by the Free 
@@ -29,16 +29,11 @@ readonly log_file
 op_log=0
 op_xbps_src=
 
-error() {
-	printf "(!!) Error: %40s\n" "${red} $* ${reset_colour}" && exit 1 
-}
-
-warn()  { 
-	printf "(~~) Warning: %40s\n" "${yellow} $* ${reset_colour}" 
-}
-
-info() {
-	printf "(~>) Info: %40s\n" "${green} $* ${reset_colour}"
+msg() {
+	if [ "${1}" = "error" ]; then printf "(!!) Error: %40s\n" "${red} $* ${reset_colour}" && exit 1 
+	elif [ "${1}" = "warn" ]; then printf "(~~) Warning: %40s\n" "${yellow} $* ${reset_colour}"
+	elif [ "${1}" = "info" ]; then printf "(~>) Info: %40s\n" "${green} $* ${reset_colour}"
+	 fi
 }
 
 usage() {
@@ -62,25 +57,25 @@ retrieve_repos() {
 	for i in $repos_list; do 
 	repodir=$(printf '%s' "$i" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 	if [ ! -d "$conf_workdir"/"$repodir" ]; then
-		info Cloning "$i"...
+		msg info Cloning "$i"...
 		git clone --depth 1  "$i" "$conf_workdir"/"$repodir" || error Cannot clone "$i" repo.
-		info Succesfully cloned "$i"!
-	else info "$i" already exist in "$repodir"! ;fi
+		msg info Succesfully cloned "$i"!
+	else msg warn "$i" already exist in "$repodir"! ;fi
 	done
 } 
 sync_repos() {
 	repos_list="$default_repo $repo_abyss_packages"
 	for i in $repos_list; do 
 	repodir=$(printf '%s' "$i" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
-	info info Syncing with "$i"...
+	msg info  Syncing with "$i"...
 	cd "$conf_workdir"/"$repodir" || error Cannot change to the "$conf_workdir"/"$repodir"!
 	git pull "$i" "$(git branch --show-current)" || error Cannot sync to the "$i".
-	info Succesfully synced  "$i" repo!
+	msg info Succesfully synced  "$i" repo!
 	done
 }
 
 integrate_xtra_templates() {
-	cp -r "$conf_workdir"/_mobinmob_abyss-packages.git/* "$conf_workdir"/"$default_repo_dir"/srcpkgs/ || error Cannot copy templates...
+	cp -r "$conf_workdir"/_mobinmob_abyss-packages.git/* "$conf_workdir"/"$default_repo_dir"/srcpkgs/ || msg error Cannot copy templates...
 }
 
 xbps_src_command() {
@@ -101,17 +96,17 @@ install_packages() {
 main() {
 #program execution starts here
 # Check for root
-[ "$(id -u)" -eq 0 ] && error Please run the program as a user!
-info Full comand given is [xut "$showargs"].
+[ "$(id -u)" -eq 0 ] && msg error Please run the program as a user!
+msg info Full comand given is [xut "$showargs"].
 #Get the configuration from the conf file if it exists.
 # shellcheck disable=SC1091
 if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
 	. "$XDG_CONFIG_HOME"/.xutconf
-	info Using configuration from "$XDG_CONFIG_HOME"/.xutconf.
+	msg info Using configuration from "$XDG_CONFIG_HOME"/.xutconf.
 elif [ -e "$HOME"/.xutconf ]; then
 	. "$HOME"/.xutconf
-	info Using configuration from "$HOME"/.xutconf.
-else warn Using the default configuration.
+	msg info Using configuration from "$HOME"/.xutconf.
+else msg warn Using the default configuration.
 fi
 # Check for needed dirs.
 [ ! -e "$conf_workdir" ] && mkdir -v "$conf_workdir" 
@@ -121,7 +116,8 @@ fi
 retrieve_repos
 [ "$op_sync" = 1 ] && sync_repos
 #Boostrap if masterdir is not populated
-[ -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ] || op_xbps_src="binary-bootstrap" && xbps_src_command
+if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
+then  op_xbps_src="binary-bootstrap" && xbps_src_command; fi
 #all template dirs are copied 
 integrate_xtra_templates
 [ -n "$packages" ] && install_packages
