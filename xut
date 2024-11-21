@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 ## Copyright (c) 2024 by mobinmob  <mobinmob@disroot.org
 ##This program is free software: you can redistribute it and/or modify it under
 ## the terms of the GNU General Public License as published by the Free 
@@ -80,11 +80,7 @@ sync_repos() {
 }
 
 integrate_xtra_templates() {
-	cp -r "$conf_workdir"/_mobinmob_abyss-packages.git/* "$conf_workdir"/"$default_repo_dir"/ || error Cannot copy templates...
-}
-
-xbps_bootstrap() {
-	cd "$conf_workdir"/"$default_repo_dir" - && ./xbps-src binary-bootstrap
+	cp -r "$conf_workdir"/_mobinmob_abyss-packages.git/* "$conf_workdir"/"$default_repo_dir"/srcpkgs/ || error Cannot copy templates...
 }
 
 xbps_src_command() {
@@ -125,7 +121,7 @@ fi
 retrieve_repos
 [ "$op_sync" = 1 ] && sync_repos
 #Boostrap if masterdir is not populated
-[ -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ] && xbps_bootstrap
+[ -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ] || op_xbps_src="binary-bootstrap" && xbps_src_command
 #all template dirs are copied 
 integrate_xtra_templates
 [ -n "$packages" ] && install_packages
