@@ -128,7 +128,7 @@ integrate_xtra_templates
 [ -n "$packages" ] && install_packages
 }
 #Keep only 5 log files, including the current one.
-cd "$conf_workdir/logs" && ls -t xut_* | tail -n+5 | xargs rm -f
+find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
 while getopts "si:hlx:" OPTION; do
 	case "${OPTION}" in
