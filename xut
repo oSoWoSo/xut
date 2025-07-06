@@ -22,7 +22,7 @@ red=$(tput setaf 1)
 yellow=$(tput setaf 3)
 reset_colour=$(tput sgr0)
 #define a log filename
-conf_log_dir="$conf_workdir"
+conf_log_dir="$conf_workdir/logs"
 log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 readonly log_file
 #set default operation variables
@@ -109,7 +109,7 @@ elif [ -e "$HOME"/.xutconf ]; then
 else msg warn Using the default configuration.
 fi
 # Check for needed dirs.
-[ ! -e "$conf_workdir" ] && mkdir -v "$conf_workdir" 
+[ ! -e "$conf_workdir/logs" ] && mkdir -pv "$conf_workdir/logs" 
 # clean or zap repos before other ops
 [ -n "$op_xbps_src" ] && xbps_src_command
 # Clone repos if needed 
@@ -127,6 +127,8 @@ then  op_xbps_src="binary-bootstrap" && xbps_src_command; fi
 integrate_xtra_templates
 [ -n "$packages" ] && install_packages
 }
+#Keep only 5 log files, including the current one.
+cd "$conf_workdir/logs" && ls -t xut_* | tail -n+5 | xargs rm -f
 
 while getopts "si:hlx:" OPTION; do
 	case "${OPTION}" in
