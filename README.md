@@ -31,7 +31,7 @@ and installs sw with a single command.
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
 - [ ] Implement a way to handle upgrades gracefully.
-- [ ] Search for a practical way to enable more than one unofficial repos
+- [ ] Search for a practical way to enable more than one unofficial repos [**wip in the manyrepos branch**]
 - [ ] ... (suggestions are welcome, working code even more welcome)
 
 ### Usage
