@@ -34,6 +34,7 @@ msg() {
 	if [ "${1}" = "error" ]; then printf "%s\n" "${red}(!!) Error: ${2} ${reset_colour}" && exit 1 
 	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}(~~) Warning: ${2} ${reset_colour}"
 	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}(~>) Info:  ${2} ${reset_colour}"
+	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1 
 	 fi
 }
 
@@ -45,17 +46,19 @@ usage() {
 	Build and install packages for Void Linux, from the abyss-packages unofficial repo
 	
 	OPTIONS
-	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
-	 -l	Keep a log file under $conf_log_dir.
-	 -x	Give xbps-src commands.
 	 -s	Sync the repos.
+	 -l	Keep a log file under $conf_log_dir.
 	 -h	Display this usage information.
+	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
+	 -x	Give xbps-src commands.
+	 
 	EOH
 }
 
 find_repodir() {
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 }
+
 include_additional_repos() {
 	repos_list="$default_repo"
 	for xtra_repo in $additional_repos; do
@@ -67,15 +70,16 @@ retrieve_repos() {
 for repo in $repos_list; do
 	find_repodir "$repo"
 	if [ ! -d "$conf_workdir"/"$repodir" ]; then
-		msg info Cloning "$repo"...
+		msg info "Cloning $repo..."
 		git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
-		msg info Succesfully cloned "$repo"!
-		else msg info "$repo already exist in $repodir !" ;fi
+		msg info "Succesfully cloned $repo !"
+	else msg info "$repo already exists in $repodir !" ;fi
 done
 } 
 
 
 sync_repos() {
+if [ "$op_sync" = 1 ]; then
 	for repo in $repos_list; do 
 		find_repodir "$repo"
 		msg info  "Syncing with $repo..."
@@ -83,6 +87,7 @@ sync_repos() {
 		git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
 		msg info "Succesfully synced  $repo repo."
 	done
+else msg info "Not syncing repos..."; fi
 }
 
 integrate_xtra_templates() {
@@ -97,15 +102,17 @@ integrate_xtra_templates() {
 }
 
 xbps_src_command() {
-	cd "$conf_workdir"/"$default_repo_dir" - && ./xbps-src "$op_xbps_src"
+	cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change directory into $default_repo_dir"
+	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
+	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
 }
 
 install_packages() {
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	[ -z "$package_list" ] && msg error "Nothing to do..."
-	for i in $package_list; do 
-		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg "$i"
+	for package in $package_list; do 
+		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg "$package"
 	done
 	# shellcheck disable=SC2086
 	xi $package_list
@@ -139,6 +146,7 @@ if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/c
 	msg info "Building restricted packages is enabled!"
 else printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
 fi
+
 #Boostrap if masterdir is not populated
 if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
 then  op_xbps_src="binary-bootstrap" && xbps_src_command; fi
@@ -146,16 +154,17 @@ then  op_xbps_src="binary-bootstrap" && xbps_src_command; fi
 integrate_xtra_templates
 [ -n "$packages" ] && install_packages
 }
+
 #Keep only 5 log files, including the current one.
 find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
-while getopts "si:hlx:" OPTION; do
+while getopts "slhi:x:" OPTION; do
 	case "${OPTION}" in
 		s) op_sync=1;;
-		i) packages="$OPTARG";;
 		l) op_log=1;;
-		x) op_xbps_src="$OPTARG";;
 		h) usage ; exit 0;;
+		i) packages="$OPTARG";;
+		x) op_xbps_src="$OPTARG";;
 		*) usage ; exit 0;;
 	esac
 done
