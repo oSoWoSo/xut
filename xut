@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 ## Copyright (c) 2024-2025 by mobinmob  <mobinmob@disroot.org
 ##This program is free software: you can redistribute it and/or modify it under
 ## the terms of the GNU General Public License as published by the Free 
@@ -15,7 +15,7 @@ readonly default_repo=https://github.com/void-linux/void-packages.git
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 readonly default_repo_dir
-conf_workdir="${HOME}/.xut"
+${conf_workdir:="${HOME}"/.xut}
 #colours
 green=$(tput setaf 2)
 red=$(tput setaf 1)
@@ -136,7 +136,7 @@ build_packages() {
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
-	if [ ! -n "$op_install" ]; then 
+	if [ -z "$op_install" ]; then 
 	msg info "Succesfully build $packages!"
 	exit 0 ; fi
 }
