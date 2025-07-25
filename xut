@@ -28,6 +28,7 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 readonly log_file
 #set default operation variables
 op_log=0
+op_install=
 op_xbps_src=
 
 msg() {
@@ -52,6 +53,7 @@ usage() {
 	 -s	Sync the repos.
 	 -l	Keep a log file under $conf_log_dir.
 	 -h	Display this usage information.
+	 -b Build a list of (comma-seperated) packages.
 	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
 	 -x	Give xbps-src commands.
 	 
@@ -111,9 +113,10 @@ xbps_src_command() {
 	cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change directory into $default_repo_dir"
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
 	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
+	msg info "[./xbps-src $op_xbps_src] executed succesfully!" && exit 0
 }
 
-install_packages() {
+build_packages() {
 	# Prepare for installation
 	## Enable building restricted packages
 	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf ; then
@@ -124,8 +127,8 @@ install_packages() {
 	if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
 	then cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change to $conf_workdir"/"$default_repo_dir"
 		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"; fi
-	# Start package build and installation
-	[ -z "$packages" ] && msg warn "No packages for installation..." && exit 0
+	# Start package build
+	[ -z "$packages" ] && msg warn "No packages for building..." && exit 0
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for package in $package_list; do 
@@ -133,6 +136,13 @@ install_packages() {
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
+	if [ ! -n "$op_install" ]; then 
+	msg info "Succesfully build $packages!"
+	exit 0 ; fi
+}
+
+install_packages() {
+	build_packages
 	# shellcheck disable=SC2086
 	xi $package_list
 }
@@ -167,12 +177,13 @@ install_packages
 #Keep only 5 log files, including the current one.
 find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
-while getopts "slhi:x:" OPTION; do
+while getopts "slhb:i:x:" OPTION; do
 	case "${OPTION}" in
 		s) op_sync=1;;
 		l) op_log=1;;
 		h) usage ; exit 0;;
-		i) packages="$OPTARG";;
+		b) packages="$OPTARG";;
+		i) packages="$OPTARG" && op_install=1;;
 		x) op_xbps_src="$OPTARG";;
 		*) usage ; exit 0;;
 	esac

@@ -42,14 +42,21 @@ xut [options]
 
 | OPTIONS                | Info                                                    |
 | ---------------------- | ------------------------------------------------------- |
-| -s                     | sync                                                    |
-| -i <package1,package2> | build and install a (comma-separated) list of packages. |
-| -l                     | Keep a log file (5 most recent log files remain)   |
-| -x                     | Give xbps-src commands.                                 |
-| -s                     | Sync the repos.                                         |
+| -s                     | Sync the repos
+| -l                     | Keep a log file (5 most recent log files remain)        |
 | -h                     | Display this usage information.                         |
+| -b <package1,package2> | Build a (comma-separated) list of packages.             |                               |
+| -i <package1,package2> | Build and install a (comma-separated) list of packages. |
+| -x                     | Give xbps-src commands.                                 |
+                                     |
+
 
 ### Examples
+
+- Build packages (without installing them):
+```shell
+xut -b package1,package2
+```
 
 - Sync repos and install packages with logging enabled: 
 ```shell
