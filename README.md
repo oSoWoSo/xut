@@ -21,7 +21,7 @@ official repos. It clones both the void-packages and abyss-packages repository (
 1. Download, the `xut` script into the path and make it executable.
 2. Use the xutconf.sample if you want to modify configuration.
 3. The script depends on:
-   - `sh`,
+   - `sh` and the  posix userland,
    - `xbps`,
    - `git`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
