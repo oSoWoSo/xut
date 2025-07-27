@@ -3,8 +3,11 @@
 ## they should copy, modify and rename the file in $XDG_CONFIG_HOME/.xutconf or $HOME"/.xutconf
 ## Both locations are searched.
 
-#conf_workdir is the default directory where repos are being downloaded
-#into and the actuall operations take place
-conf_workdir="${HOME}/.xut"
-#conf_log_dir is where the log files will reside.
-conf_log_dir="$conf_workdir"
+# conf_workdir is the directory where xut works. It is $HOME/.xut by default.
+# You can uncomment and change to a different dir if you want to.
+#conf_workdir='$HOME"/.xut
+
+# void-packages and abyss-packages repos are always used.
+# if someone wants additional repos add the git repo clone url in the
+# addtional_repos variable as a list
+additional_repos=""

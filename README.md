@@ -21,7 +21,7 @@ official repos. It clones both the void-packages and abyss-packages repository (
 1. Download, the `xut` script into the path and make it executable.
 2. Use the xutconf.sample if you want to modify configuration.
 3. The script depends on:
-   - `sh`,
+   - `sh` and the  posix userland,
    - `xbps`,
    - `git`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
@@ -42,14 +42,21 @@ xut [options]
 
 | OPTIONS                | Info                                                    |
 | ---------------------- | ------------------------------------------------------- |
-| -s                     | sync                                                    |
-| -i <package1,package2> | build and install a (comma-separated) list of packages. |
-| -l                     | Keep a log file (5 most recent log files remain)   |
-| -x                     | Give xbps-src commands.                                 |
-| -s                     | Sync the repos.                                         |
+| -s                     | Sync the repos
+| -l                     | Keep a log file (5 most recent log files remain)        |
 | -h                     | Display this usage information.                         |
+| -b <package1,package2> | Build a (comma-separated) list of packages.             |                               |
+| -i <package1,package2> | Build and install a (comma-separated) list of packages. |
+| -x                     | Give xbps-src commands.                                 |
+                                     |
+
 
 ### Examples
+
+- Build packages (without installing them):
+```shell
+xut -b package1,package2
+```
 
 - Sync repos and install packages with logging enabled: 
 ```shell
