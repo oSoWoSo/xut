@@ -6,12 +6,12 @@ DOCDIR?=$(PREFIX)/share/doc/xut/
 install:
 	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR)/man1 $(DESTDIR)$(DOCDIR)/xut
 	install -m755 xut $(DESTDIR)$(BINDIR)/xut
-#	install -m644 xut.1 $(DESTDIR)$(MANDIR)/man1/xut.1
+	install -m644 xut.1 $(DESTDIR)$(MANDIR)/man1/xut.1
 	install -m644 xutconf.sample $(DESTDIR)$(DOCDIR)/xut/xutconf.sample
 	
 uninstall: 
 	rm -f $(DESTDIR)$(BINDIR)/xut
-#	rm -f $(DESTDIR)$(MANDIR)/man1/xut.1
+	rm -f $(DESTDIR)$(MANDIR)/man1/xut.1
 	rm -f $(DESTDIR)$(DOCDIR)/xut/xutconf.sample
 
 .PHONY: install uninstall
