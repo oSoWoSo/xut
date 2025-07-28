@@ -38,7 +38,8 @@ msg() {
 	if [ "${1}" = "error" ]; then printf "%s\n" "${red}(!!) Error: ${2} ${reset_colour}" && exit 1 
 	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}(~~) Warning: ${2} ${reset_colour}"
 	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}(~>) Info:  ${2} ${reset_colour}"
-	elif [ "${1}" = "debug" ]; then printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
+	elif [ "${1}" = "debug" ]; then 
+	[ "$op_log" -eq 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
 	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1 
 	fi
 }
@@ -89,12 +90,13 @@ done
 
 sync_repos() {
 if [ "$op_sync" = 1 ]; then
+	msg info "Syncing repos..."
 	for repo in $repos_list; do 
 		find_repodir "$repo"
-		msg info  "Syncing with $repo..."
+		msg debug  "Syncing with $repo..."
 		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
 		git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
-		msg info "Succesfully synced  $repo repo."
+		msg debug "Succesfully synced  $repo repo."
 	done
 else msg debug "Not syncing repos..."; fi
 }
@@ -122,7 +124,9 @@ build_packages() {
 	## Enable building restricted packages
 	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf ; then
 		msg debug "Building restricted packages is enabled!"
-	else printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
+	else 
+		msg info "Enable building restricted packages!"
+		printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
 	fi
 	## Boostrap if masterdir is not populated
 	if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
@@ -131,15 +135,18 @@ build_packages() {
 	# Start package build
 	if [ -n "$op_build" ] && [ -n "$op_install" ]; then
 		msg error " -b and -i arguments cannot be used at the same time"; fi
-	[ -z "$packages" ] && msg warn "No packages for building..." && exit 0
+	if [ -n "$op_build" ] && [ -z "$packages" ]; then \
+		 msg warn "No packages for building..."
+		 exit 0
+	fi
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for package in $package_list; do 
-		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg "$package"
+		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg -E "$package"
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
-	if [ -z "$op_install" ]; then 
+	if [ -n "$packages" ] && [ -z "$op_install" ]; then 
 	msg info "Succesfully build $packages!"
 	exit 0 ; fi
 }
@@ -147,7 +154,7 @@ build_packages() {
 install_packages() {
 	build_packages
 	# shellcheck disable=SC2086
-	xi $package_list
+	if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $(echo $packages) installed." ;fi
 }
 
 main() {
@@ -189,6 +196,7 @@ while getopts "slhb:i:x:" OPTION; do
 		i) packages="$OPTARG" && op_install=1;;
 		x) op_xbps_src="$OPTARG";;
 		*) usage ; exit 0;;
+		**)usage ; exit 0;;
 	esac
 done
 # Capture all the arguments given
