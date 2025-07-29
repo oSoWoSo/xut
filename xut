@@ -28,6 +28,7 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 readonly log_file
 #set default operation variables
 op_log=0
+op_query=
 op_build=
 op_install=
 op_xbps_src=
@@ -105,9 +106,11 @@ integrate_xtra_templates() {
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
-		# shellcheck disable=SC2086
-		cp -r "$conf_workdir"/"$repodir"/* "$conf_workdir"/"$default_repo_dir"/srcpkgs/ \
-			|| msg error "Cannot copy templates from $repo... "
+		for dir in "$conf_workdir"/"$repodir"/* ; do
+			if [ -e "$dir"/template ]; then		
+				# shellcheck disable=SC2086
+				cp -r "$dir" "$conf_workdir"/"$default_repo_dir"/srcpkgs/ \
+			|| msg error "Cannot copy templates from $repo... " ; fi ; done
 		fi
 	done
 }
@@ -117,6 +120,26 @@ xbps_src_command() {
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
 	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
 	msg info "[./xbps-src $op_xbps_src] executed succesfully!" && exit 0
+}
+
+search_xtra_templates() {
+	if [ -n "$op_query" ] && [ -n "$template_query" ]; then
+	msg info "Searching for <$template_query> ..."
+	else msg debug "No template search requested.." && return ; fi
+	for repo in $repos_list; do
+		find_repodir "$repo"
+		if [ "$repo" != "$default_repo" ]; then
+		for dir in "$conf_workdir"/"$repodir"/* ; do
+			if [ -e "$dir"/template ]; then
+				template_list="$template_list $(basename "$dir")" ;fi ; done
+		fi
+	done
+	query_results=$(echo "$template_list" | tr " " "\n" | awk /"$template_query"/)
+	if [ -n "$query_results" ]; then 
+		msg info "Search results :"
+		printf "%s\n" "${green}$query_results${reset_colour}"
+		exit 0
+	else msg warn "No templates found!" && exit 0 ; fi		
 }
 
 build_packages() {
@@ -154,7 +177,7 @@ build_packages() {
 install_packages() {
 	build_packages
 	# shellcheck disable=SC2086
-	if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $(echo $packages) installed." ;fi
+	if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $packages installed." ;fi
 }
 
 main() {
@@ -173,12 +196,13 @@ elif [ -e "$HOME"/.xutconf ]; then
 else msg info "Using the default configuration."
 fi
 # Check for needed dirs.
-[ ! -e "$conf_workdir/logs" ] && mkdir -pv "$conf_workdir/logs" 
+[ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir" 
 [ -n "$op_xbps_src" ] && xbps_src_command
 include_additional_repos
 # Clone repos if needed
 retrieve_repos
 sync_repos
+search_xtra_templates
 #all template dirs are copied 
 integrate_xtra_templates
 install_packages
@@ -187,7 +211,7 @@ install_packages
 #Keep only 5 log files, including the current one.
 find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
-while getopts "slhb:i:x:" OPTION; do
+while getopts "slhb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_sync=1;;
 		l) op_log=1;;
@@ -195,8 +219,8 @@ while getopts "slhb:i:x:" OPTION; do
 		b) packages="$OPTARG" && op_build=1;;
 		i) packages="$OPTARG" && op_install=1;;
 		x) op_xbps_src="$OPTARG";;
-		*) usage ; exit 0;;
-		**)usage ; exit 0;;
+		q) template_query="$OPTARG" && op_query="1";;
+		*)usage ; exit 0;;
 	esac
 done
 # Capture all the arguments given
