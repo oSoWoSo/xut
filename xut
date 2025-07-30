@@ -10,32 +10,18 @@
 ## this program. If not, see <https://www.gnu.org/licenses/>.
 ### SPDX short identifier: GPL-2.0-only
 
-#setting default configuration
-readonly default_repo=https://github.com/void-linux/void-packages.git
-readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
-default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
-readonly default_repo_dir
-[ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
-#colours
-green=$(tput setaf 2)
-red=$(tput setaf 1)
-yellow=$(tput setaf 3)
-fade=$(tput dim)
-reset_colour=$(tput sgr0)
-#define a log filename
-conf_log_dir="$conf_workdir/logs"
-log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
-readonly log_file
-#set default operation variables
-op_log=0
-op_query=
-op_build=
-op_install=
-op_xbps_src=
 
 msg() {
 	# Use colour-coded messages for informational, warning, and error output
 	#${1} is the message type, ${2} is the message content
+	#needs to be here, all messages depend on it.
+	#colours
+	green=$(tput setaf 2)
+	red=$(tput setaf 1)
+	yellow=$(tput setaf 3)
+	fade=$(tput dim)
+	reset_colour=$(tput sgr0)
+	
 	if [ "${1}" = "error" ]; then printf "%s\n" "${red}(!!) Error: ${2} ${reset_colour}" && exit 1 
 	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}(~~) Warning: ${2} ${reset_colour}"
 	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}(~>) Info:  ${2} ${reset_colour}"
@@ -45,7 +31,40 @@ msg() {
 	fi
 }
 
+#Get the configuration from the conf file if it exists.
+#shellcheck disable=SC1091
+if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
+	. "$XDG_CONFIG_HOME"/.xutconf
+	msg info "Using configuration from $XDG_CONFIG_HOME/.xutconf."
+elif [ -e "$HOME"/.xutconf ]; then
+	. "$HOME"/.xutconf
+	msg info "Using configuration from $HOME/.xutconf."
+else msg info "Using the default configuration."
+fi
+
+# Setting default configuration
+readonly default_repo=https://github.com/void-linux/void-packages.git
+readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
+default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
+readonly default_repo_dir
+[ -z "$conf_workdir" ] && conf_workdir="$HOME/.xut"
+#define a log filename
+conf_log_dir="$conf_workdir/logs"
+log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
+readonly log_file
+# Check for needed dirs.
+[ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
+#set default operation variables
+op_log=0
+op_query=
+op_build=
+op_install=
+op_xbps_src=
+
+
+
 usage() {
+	#Display basic tui information
 	cat <<-EOH
 	Usage: $(basename "$0") [options]
 
@@ -65,11 +84,13 @@ usage() {
 }
 
 find_repodir() {
-	#define a proper (no slashes...) directory name for each remote git repo
+	#define a proper (no slashes...) directory name for a remote git repo
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 }
 
 include_additional_repos() {
+	# Add all repos to a list, repo_abyss_package is last and its contents
+	# superseed the others.
 	repos_list="$default_repo"
 	# shellcheck disable=SC2154
 	for xtra_repo in $additional_repos; do
@@ -79,31 +100,37 @@ include_additional_repos() {
 }
 
 retrieve_repos() {
-for repo in $repos_list; do
-	find_repodir "$repo"
-	if [ ! -d "$conf_workdir"/"$repodir" ]; then
-		msg info "Cloning $repo..."
-		git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
-		msg info "Succesfully cloned $repo !"
-	else msg debug "$repo already exists in $repodir !" ;fi
-done
+	# Clone every configured repo if needed.
+	msg info "Cloning repos..."
+	for repo in $repos_list; do
+		find_repodir "$repo"
+		if [ ! -d "$conf_workdir"/"$repodir" ]; then
+			msg debug "Cloning $repo..."
+			git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			msg debug "Succesfully cloned $repo !"
+		else msg debug "$repo already exists in $repodir !" ;fi
+	done
 } 
 
 
 sync_repos() {
-if [ "$op_sync" = 1 ]; then
-	msg info "Syncing repos..."
-	for repo in $repos_list; do 
-		find_repodir "$repo"
-		msg debug  "Syncing with $repo..."
-		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
-		git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
-		msg debug "Succesfully synced  $repo repo."
-	done
-else msg debug "Not syncing repos..."; fi
+	# Sync
+	if [ "$op_sync" = 1 ]; then
+		msg info "Syncing repos..."
+		for repo in $repos_list; do 
+			find_repodir "$repo"
+			msg debug  "Syncing with $repo..."
+			cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
+			git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
+			msg debug "Succesfully synced  $repo repo."
+		done
+	else msg debug "Not syncing repos..."; fi
 }
 
 integrate_xtra_templates() {
+	# Merge all avsailable template directories to
+	# the srcpkgs/ of the default repo, later list
+	# entries take precedence (override previous).
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
@@ -117,6 +144,7 @@ integrate_xtra_templates() {
 }
 
 xbps_src_command() {
+	# Give xbps-src commands directly to the merged repository.
 	cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change directory into $default_repo_dir"
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
 	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
@@ -124,6 +152,7 @@ xbps_src_command() {
 }
 
 search_xtra_templates() {
+	# Search available templates.
 	if [ -n "$op_query" ] && [ -n "$template_query" ]; then
 	msg info "Searching for <$template_query> ..."
 	else msg debug "No template search requested.." && return ; fi
@@ -182,22 +211,9 @@ install_packages() {
 }
 
 main() {
-#program execution starts here
 # Check for root
 [ "$(id -u)" -eq 0 ] && msg error "Please run the program as a user!"
 msg info "Full comand given is [xut $showargs]."
-#Get the configuration from the conf file if it exists.
-# shellcheck disable=SC1091
-if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
-	. "$XDG_CONFIG_HOME"/.xutconf
-	msg info "Using configuration from $XDG_CONFIG_HOME/.xutconf."
-elif [ -e "$HOME"/.xutconf ]; then
-	. "$HOME"/.xutconf
-	msg info "Using configuration from $HOME/.xutconf."
-else msg info "Using the default configuration."
-fi
-# Check for needed dirs.
-[ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir" 
 [ -n "$op_xbps_src" ] && xbps_src_command
 include_additional_repos
 # Clone repos if needed
