@@ -180,7 +180,7 @@ search_xtra_templates() {
 	
 	# Search available templates.
 	
-	if [ "$op_query" -eq 1 ] && [ -n "$template_query" ]; then
+	if [ -n "$op_query" ] && [ -n "$template_query" ]; then
 	msg info "Searching for <$template_query> ..."
 	for repo in $repos_list; do
 		find_repodir "$repo"
