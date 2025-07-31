@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "XUT" "1" "2025-07-27"
+.TH "XUT" "1" "2025-07-29"
 .PP
 .SH NAME
 .PP
@@ -55,6 +55,12 @@ Build and install a list of (comma-seperated) packages.\&
 Executed xbps-src commands.\&
 .PP
 .RE
+\fB-q\fR <query>
+.RS 4
+Search for <query> in available templates.\&
+.PP
+.PP
+.RE
 .SS Notes for cli arguments
 .RS 4
 .PD 0
@@ -64,6 +70,8 @@ If \fB-x\fR is used, \fB-b\fR and \fB-p\fR will be ignored.\&
 \fB-b\fR and \fB-i\fR cannot be used in the same command.\&
 .IP \(bu 4
 \fB-l\fR and \fB-s\fR are meant to be used with the other arguments (\fB-x,\fR, \fB-b\fR and \fB-i\fR).\&
+.IP \(bu 4
+\fB-l\fR enables "debug" messages in the output, which becomes more verbose.\&
 .PD
 .PP
 .RE
@@ -90,16 +98,25 @@ Build packages (without installing them):
 .PD
 .RE
 .RE
-\&'\&xut -b package1,package2'\&
+\&'\&xut -b package1,package2'\&	
 .RS 4
 .PD 0
 .IP \(bu 4
-Sync repos and install packages with logging enabled:
+Sync repos and install packages:
 .RS 4
 .PD
 .RE
 .RE
-\&'\&xut -sli package1,package2'\&
+\&'\&xut -si package1,package2'\&	
+.RS 4
+.PD 0
+.IP \(bu 4
+Use the above command with logging enabled:
+.RS 4
+.PD
+.RE
+.RE
+\&'\&xut -sli package1,package2'\&		
 .RS 4
 .PD 0
 .IP \(bu 4

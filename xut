@@ -10,40 +10,69 @@
 ## this program. If not, see <https://www.gnu.org/licenses/>.
 ### SPDX short identifier: GPL-2.0-only
 
-#setting default configuration
+
+msg() {
+	
+	# Use colour-coded messages for informational, warning, and error output
+	#${1} is the message type, ${2} is the message content
+	#needs to be here, all messages depend on it.
+	#colours
+	
+	green=$(tput setaf 2)
+	red=$(tput setaf 1)
+	yellow=$(tput setaf 3)
+	fade=$(tput dim)
+	bold=$(tput bold)
+	reset_colour=$(tput sgr0)
+	
+	if [ "${1}" = "error" ]; then printf "%s\n" "${red}${bold}(!!) Error:${reset_colour} ${bold}${2}${reset_colour}" && exit 1 
+	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}${bold}(~~) Warning:${reset_colour} ${bold}${2} ${reset_colour}"
+	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}${bold}(~>) Info:${reset_colour}  ${bold}${2} ${reset_colour}"
+	elif [ "${1}" = "debug" ]; then 
+	[ "$op_log" -eq 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
+	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1 
+	fi
+}
+
+#Get the configuration from the conf file if it exists.
+
+#shellcheck disable=SC1091
+if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
+	. "$XDG_CONFIG_HOME"/.xutconf
+	msg info "Using configuration from $XDG_CONFIG_HOME/.xutconf."
+elif [ -e "$HOME"/.xutconf ]; then
+	. "$HOME"/.xutconf
+	msg info "Using configuration from $HOME/.xutconf."
+else msg info "Using the default configuration."
+fi
+
+# Setting default configuration
+
 readonly default_repo=https://github.com/void-linux/void-packages.git
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 readonly default_repo_dir
 [ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
-#colours
-green=$(tput setaf 2)
-red=$(tput setaf 1)
-yellow=$(tput setaf 3)
-fade=$(tput dim)
-reset_colour=$(tput sgr0)
 #define a log filename
 conf_log_dir="$conf_workdir/logs"
 log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
+# Check for needed dirs.
+[ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
+
 #set default operation variables
+
 op_log=0
+op_query=
 op_build=
 op_install=
 op_xbps_src=
 
-msg() {
-	# Use colour-coded messages for informational, warning, and error output
-	#${1} is the message type, ${2} is the message content
-	if [ "${1}" = "error" ]; then printf "%s\n" "${red}(!!) Error: ${2} ${reset_colour}" && exit 1 
-	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}(~~) Warning: ${2} ${reset_colour}"
-	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}(~>) Info:  ${2} ${reset_colour}"
-	elif [ "${1}" = "debug" ]; then printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
-	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1 
-	fi
-}
 
 usage() {
+	
+	#Display basic tui information
+	
 	cat <<-EOH
 	Usage: $(basename "$0") [options]
 
@@ -57,16 +86,23 @@ usage() {
 	 -b	<package1,package2> Build a list of (comma-seperated) packages.
 	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
 	 -x	Give xbps-src commands.
+	 -q <query>	Search for <query> in available templates.
 	 
 	EOH
 }
 
 find_repodir() {
-	#define a proper (no slashes...) directory name for each remote git repo
+	
+	#define a proper (no slashes...) directory name for a remote git repo
+	
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 }
 
 include_additional_repos() {
+	
+	# Add all repos to a list, repo_abyss_package is last and its contents
+	# superseed the others.
+	
 	repos_list="$default_repo"
 	# shellcheck disable=SC2154
 	for xtra_repo in $additional_repos; do
@@ -76,70 +112,116 @@ include_additional_repos() {
 }
 
 retrieve_repos() {
-for repo in $repos_list; do
-	find_repodir "$repo"
-	if [ ! -d "$conf_workdir"/"$repodir" ]; then
-		msg info "Cloning $repo..."
-		git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
-		msg info "Succesfully cloned $repo !"
-	else msg debug "$repo already exists in $repodir !" ;fi
-done
+	
+	# Clone every configured repo if needed.
+	
+	msg info "Cloning repos..."
+	for repo in $repos_list; do
+		find_repodir "$repo"
+		if [ ! -d "$conf_workdir"/"$repodir" ]; then
+			msg debug "Cloning $repo..."
+			git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			msg debug "Succesfully cloned $repo !"
+		else msg debug "$repo already exists in $repodir !" ;fi
+	done
 } 
 
-
 sync_repos() {
-if [ "$op_sync" = 1 ]; then
-	for repo in $repos_list; do 
-		find_repodir "$repo"
-		msg info  "Syncing with $repo..."
-		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
-		git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
-		msg info "Succesfully synced  $repo repo."
-	done
-else msg debug "Not syncing repos..."; fi
+	
+	# Sync every configured repo.
+	
+	if [ "$op_sync" = 1 ]; then
+		msg info "Syncing repos..."
+		for repo in $repos_list; do 
+			find_repodir "$repo"
+			msg debug  "Syncing with $repo..."
+			cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
+			git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
+			msg debug "Succesfully synced  $repo repo."
+		done
+	else msg debug "Not syncing repos..."; fi
 }
 
 integrate_xtra_templates() {
+	
+	# Merge all available template directories to
+	# the srcpkgs/ of the default repo, later list
+	# entries take precedence (override previous).
+	
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
-		# shellcheck disable=SC2086
-		cp -r "$conf_workdir"/"$repodir"/* "$conf_workdir"/"$default_repo_dir"/srcpkgs/ \
-			|| msg error "Cannot copy templates from $repo... "
+		for dir in "$conf_workdir"/"$repodir"/* ; do
+			if [ -e "$dir"/template ]; then		
+				# shellcheck disable=SC2086
+				cp -r "$dir" "$conf_workdir"/"$default_repo_dir"/srcpkgs/ \
+			|| msg error "Cannot copy templates from $repo... " ; fi ; done
 		fi
 	done
 }
 
 xbps_src_command() {
+	
+	# Give xbps-src commands directly to the merged repository.
+	
 	cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change directory into $default_repo_dir"
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
 	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
 	msg info "[./xbps-src $op_xbps_src] executed succesfully!" && exit 0
 }
 
+search_xtra_templates() {
+	
+	# Search available templates.
+	
+	[ -n "$op_query" ] && 	msg info "Searching for <$template_query> ..."
+	for repo in $repos_list; do
+		find_repodir "$repo"
+		if [ "$repo" != "$default_repo" ]; then
+		for dir in "$conf_workdir"/"$repodir"/* ; do
+			if [ -e "$dir"/template ]; then
+				template_list="$template_list $(basename "$dir")" ;fi ; done
+		fi
+	done
+	query_results=$(echo "$template_list" | tr " " "\n" | awk /"$template_query"/)
+	if [ -n "$query_results" ]; then 
+		msg info "Search results :"
+		for result in ${query_results}; do 
+		printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"; done
+		exit 0
+	else msg warn "No templates found!" && exit 0 ; fi		
+}
+
 build_packages() {
+	
 	# Prepare for installation
 	## Enable building restricted packages
+	
 	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf ; then
 		msg debug "Building restricted packages is enabled!"
-	else printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
+	else 
+		msg info "Enable building restricted packages!"
+		printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
 	fi
+	
 	## Boostrap if masterdir is not populated
+	
 	if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
 	then cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change to $conf_workdir"/"$default_repo_dir"
 		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"; fi
+	
 	# Start package build
+	
 	if [ -n "$op_build" ] && [ -n "$op_install" ]; then
 		msg error " -b and -i arguments cannot be used at the same time"; fi
-	[ -z "$packages" ] && msg warn "No packages for building..." && exit 0
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for package in $package_list; do 
-		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg "$package"
+		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg -E "$package"
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
-	if [ -z "$op_install" ]; then 
+	if [ -n "$packages" ] && [ -z "$op_install" ]; then 
 	msg info "Succesfully build $packages!"
 	exit 0 ; fi
 }
@@ -147,40 +229,35 @@ build_packages() {
 install_packages() {
 	build_packages
 	# shellcheck disable=SC2086
-	xi $package_list
+	if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $packages installed." ;fi
 }
 
 main() {
-#program execution starts here
+
 # Check for root
+
 [ "$(id -u)" -eq 0 ] && msg error "Please run the program as a user!"
 msg info "Full comand given is [xut $showargs]."
-#Get the configuration from the conf file if it exists.
-# shellcheck disable=SC1091
-if [ -e "$XDG_CONFIG_HOME"/.xutconf ]; then
-	. "$XDG_CONFIG_HOME"/.xutconf
-	msg info "Using configuration from $XDG_CONFIG_HOME/.xutconf."
-elif [ -e "$HOME"/.xutconf ]; then
-	. "$HOME"/.xutconf
-	msg info "Using configuration from $HOME/.xutconf."
-else msg info "Using the default configuration."
-fi
-# Check for needed dirs.
-[ ! -e "$conf_workdir/logs" ] && mkdir -pv "$conf_workdir/logs" 
 [ -n "$op_xbps_src" ] && xbps_src_command
 include_additional_repos
+
 # Clone repos if needed
+
 retrieve_repos
 sync_repos
+search_xtra_templates
+
 #all template dirs are copied 
+
 integrate_xtra_templates
 install_packages
 }
 
 #Keep only 5 log files, including the current one.
+
 find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
-while getopts "slhb:i:x:" OPTION; do
+while getopts "slhb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_sync=1;;
 		l) op_log=1;;
@@ -188,10 +265,13 @@ while getopts "slhb:i:x:" OPTION; do
 		b) packages="$OPTARG" && op_build=1;;
 		i) packages="$OPTARG" && op_install=1;;
 		x) op_xbps_src="$OPTARG";;
-		*) usage ; exit 0;;
+		q) template_query="$OPTARG" && op_query="1";;
+		*)usage ; exit 0;;
 	esac
 done
+
 # Capture all the arguments given
+
 showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
 [ "$OPTIND" -eq 1 ] && usage && exit

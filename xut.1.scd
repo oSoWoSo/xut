@@ -35,11 +35,16 @@ additional software for a void-linux installation.
 	
 *-x* 
 	Executed xbps-src commands.
+	
+*-q* <query>
+	Search for <query> in available templates.
+	
 
 ## Notes for cli arguments
 	- If *-x* is used, *-b* and *-p* will be ignored.
 	- *-b* and *-i* cannot be used in the same command.
 	- *-l* and *-s* are meant to be used with the other arguments (*-x,*, *-b* and *-i*).
+	- *-l* enables "debug" messages in the output, which becomes more verbose.
 
 # CONFIGURATION
 
@@ -55,9 +60,11 @@ additional software for a void-linux installation.
 # EXAMPLES
 
 	- Build packages (without installing them):
-		'xut -b package1,package2'
-	- Sync repos and install packages with logging enabled:
-		'xut -sli package1,package2'
+		'xut -b package1,package2'	
+	- Sync repos and install packages:
+		'xut -si package1,package2'	
+	- Use the above command with logging enabled:
+		'xut -sli package1,package2'		
 	- Execute an xbps-command in the merged repo:
 		'xut -x <command>'
 

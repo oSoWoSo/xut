@@ -18,7 +18,7 @@ official repos. It clones both the void-packages and abyss-packages repository (
 
 ### Install and setup
 
-1. Download, the `xut` script into the path and make it executable.
+1. Clone this repo, change into the `xut/` subdirectory and install using the Makefile.
 2. Use the xutconf.sample if you want to modify configuration.
 3. The script depends on:
    - `sh` and the  posix userland,
@@ -48,6 +48,7 @@ xut [options]
 | -b <package1,package2> | Build a (comma-separated) list of packages.             |                               |
 | -i <package1,package2> | Build and install a (comma-separated) list of packages. |
 | -x                     | Give xbps-src commands.                                 |
+| -q <query>             | Search for <query> in available templates.              |
                                      |
 
 
@@ -58,7 +59,12 @@ xut [options]
 xut -b package1,package2
 ```
 
-- Sync repos and install packages with logging enabled: 
+- Sync repos and install packages: 
+```shell
+xut -si package1,package2
+```
+
+- Use the above command with logging enabled:
 ```shell
 xut -sli package1,package2
 ```
