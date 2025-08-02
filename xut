@@ -213,7 +213,9 @@ discover_updates() {
 		 if xbps-query -p pkgname "$template" > /dev/null ; then
 		 	templates_to_check="$templates_to_check $template"; fi ; done
 	for template in $templates_to_check; do
+		 #shellcheck disable=SC1090
 		 . "$merged_dir/$template/template"
+		 #shellcheck disable=SC2154
 		 template_version="$version"_"$revision"
 		 installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g")
 		 if [ "$installed_version" != "$template_version" ]; then
