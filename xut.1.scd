@@ -30,14 +30,15 @@ additional software for a void-linux installation.
 
 *-i <package1,package2>*
 	Build and install a list of (comma-seperated) packages.
-	
-	
-	
+		
 *-x* 
 	Executed xbps-src commands.
 	
 *-q* <query>
 	Search for <query> in available templates.
+	
+*-u*
+	Update packages.
 	
 
 ## Notes for cli arguments
@@ -67,6 +68,8 @@ additional software for a void-linux installation.
 		'xut -sli package1,package2'		
 	- Execute an xbps-command in the merged repo:
 		'xut -x <command>'
+	- Update packages after syncing repos:
+		'xut -su'
 
 
 # AUTHORS

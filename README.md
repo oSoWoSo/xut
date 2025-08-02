@@ -47,8 +47,9 @@ xut [options]
 | -h                     | Display this usage information.                         |
 | -b <package1,package2> | Build a (comma-separated) list of packages.             |                               |
 | -i <package1,package2> | Build and install a (comma-separated) list of packages. |
-| -x                     | Give xbps-src commands.                                 |
+| -x <command>           | Give xbps-src commands.                                 |
 | -q <query>             | Search for <query> in available templates.              |
+| -u                     | Update packages.							               |
                                      |
 
 
@@ -73,4 +74,10 @@ xut -sli package1,package2
 
 ```shell
 xut -x <command>
+```
+
+- Update packages after syncing repos:
+
+```shell
+xut -su
 ```
