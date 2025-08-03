@@ -127,6 +127,11 @@ retrieve_repos() {
 			msg debug "Succesfully cloned $repo !"
 		else msg debug "$repo already exists in $repodir !" ;fi
 	done
+	
+	# Remove all non-upstream repo from the void-packaged clone to
+	# start from scratch
+	
+	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
 } 
 
 sync_repos() {
