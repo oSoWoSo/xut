@@ -24,13 +24,14 @@ official repos. It clones both the void-packages and abyss-packages repository (
    - `sh` and the  posix userland,
    - `xbps`,
    - `git`,
+   - `mktemp`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
    - the `tput` tool from _ncurses_.
 
 ### Todo
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
-- [ ] Implement a way to handle upgrades gracefully.
+- [x] Implement a way to handle package updates gracefully. [**-u argument**]
 - [x] Search for a practical way to enable more than one unofficial repos [**naive implementation merged from the manyrepos branch**]
 - [ ] ... (suggestions are welcome, working code even more welcome)
 
@@ -47,8 +48,9 @@ xut [options]
 | -h                     | Display this usage information.                         |
 | -b <package1,package2> | Build a (comma-separated) list of packages.             |                               |
 | -i <package1,package2> | Build and install a (comma-separated) list of packages. |
-| -x                     | Give xbps-src commands.                                 |
+| -x <command>           | Give xbps-src commands.                                 |
 | -q <query>             | Search for <query> in available templates.              |
+| -u                     | Update packages.							               |
                                      |
 
 
@@ -73,4 +75,10 @@ xut -sli package1,package2
 
 ```shell
 xut -x <command>
+```
+
+- Update packages after syncing repos:
+
+```shell
+xut -su
 ```

@@ -59,14 +59,16 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
+merged_dir=$(mktemp -d)
 
 #set default operation variables
 
 op_log=0
-op_query=
-op_build=
-op_install=
-op_xbps_src=
+op_query=0
+op_build=0
+op_install=0
+op_xbps_src=""
+op_update=0
 
 
 usage() {
@@ -87,6 +89,7 @@ usage() {
 	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
 	 -x	Give xbps-src commands.
 	 -q <query>	Search for <query> in available templates.
+	 -u	Update packages.
 	 
 	EOH
 }
@@ -124,6 +127,11 @@ retrieve_repos() {
 			msg debug "Succesfully cloned $repo !"
 		else msg debug "$repo already exists in $repodir !" ;fi
 	done
+	
+	# Remove all non-upstream repo from the void-packaged clone to
+	# start from scratch
+	
+	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
 } 
 
 sync_repos() {
@@ -142,22 +150,34 @@ sync_repos() {
 	else msg debug "Not syncing repos..."; fi
 }
 
-integrate_xtra_templates() {
-	
+merge_xtra_templates() {
+
 	# Merge all available template directories to
-	# the srcpkgs/ of the default repo, later list
+	# a temporary directory, later list
 	# entries take precedence (override previous).
 	
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
-		for dir in "$conf_workdir"/"$repodir"/* ; do
-			if [ -e "$dir"/template ]; then		
-				# shellcheck disable=SC2086
-				cp -r "$dir" "$conf_workdir"/"$default_repo_dir"/srcpkgs/ \
-			|| msg error "Cannot copy templates from $repo... " ; fi ; done
+			for dir in "$conf_workdir"/"$repodir"/* ; do
+				if [ -e "$dir"/template ]; then		
+					# shellcheck disable=SC2086
+					cp -r "$dir" "$merged_dir" \
+					 || msg error "Cannot merge templates from $repo... " ; fi
+			done
 		fi
 	done
+	for subdir in "$merged_dir"/* ; do
+		template_list="$template_list $(basename "$subdir")" ; done
+}
+
+integrate_xtra_templates() {
+	
+	# Copy merged directory contents to the srcpkgs/ of the
+	# void-packages clone.
+	
+	merge_xtra_templates
+	cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
 }
 
 xbps_src_command() {
@@ -174,24 +194,52 @@ search_xtra_templates() {
 	
 	# Search available templates.
 	
-	if [ -n "$op_query" ]; then
+	if [ "$op_query" -eq 1 ]; then
 		msg info "Searching for <$template_query> ..."
-	for repo in $repos_list; do
-		find_repodir "$repo"
-		if [ "$repo" != "$default_repo" ]; then
-		for dir in "$conf_workdir"/"$repodir"/* ; do
-			if [ -e "$dir"/template ]; then
-				template_list="$template_list $(basename "$dir")" ;fi ; done
-		fi
-	done
-	query_results=$(echo "$template_list" | tr " " "\n" | awk /"$template_query"/)
-	if [ -n "$query_results" ]; then 
-		msg info "Search results :"
-		for result in ${query_results}; do 
-		printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"; done
+		query_results=$(echo "$template_list" | tr " " "\n" | awk /"$template_query"/)
+		if [ -n "$query_results" ]; then 
+			msg info "Search results :"
+			for result in ${query_results}; do 
+				printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"; done
 		exit 0
-	else msg warn "No templates found!" && exit 0 ; fi
+		else msg warn "No templates found!" && exit 0 ; fi
+
+	# The following lets the programm continue if no query is actually needed.
+	
 	else msg debug "No template search requested.." && return ; fi	
+}
+
+discover_updates() {
+
+	# Compare versions of available templates to these of installed
+	# packages and create a list of packages to update.
+	
+	for template in $template_list; do
+		 if xbps-query -p pkgname "$template" > /dev/null ; then
+		 	templates_to_check="$templates_to_check $template"; fi ; done
+	for template in $templates_to_check; do
+		 #shellcheck disable=SC1090
+		 . "$merged_dir/$template/template"
+		 #shellcheck disable=SC2154
+		 template_version="$version"_"$revision"
+		 installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g")
+		 if [ "$installed_version" != "$template_version" ]; then
+			templates_to_update="$templates_to_update $template";fi ; done
+}
+
+update_packages() {
+
+	# Build and install available updates.
+	
+	if [ "$op_update" = 1 ]; then
+		discover_updates
+		if [ -n "$templates_to_update" ]
+			then msg info "Updating $templates_to_update ..."
+		else msg warn "No updates available" && exit 0; fi
+		op_install=1
+		packages="$templates_to_update"
+		install_packages
+	fi
 }
 
 build_packages() {
@@ -214,7 +262,7 @@ build_packages() {
 	
 	# Start package build
 	
-	if [ -n "$op_build" ] && [ -n "$op_install" ]; then
+	if [ "$op_build" -eq 1 ] && [ "$op_install" -eq 1 ]; then
 		msg error " -b and -i arguments cannot be used at the same time"; fi
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
@@ -223,15 +271,18 @@ build_packages() {
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
-	if [ -n "$packages" ] && [ -z "$op_install" ]; then 
-	msg info "Succesfully build $packages!"
-	exit 0 ; fi
+	
+	# Exit program if build_packages() is called by itself.
+	
+	if [ -n "$packages" ] && [ "$op_install" -eq 0 ]; then 
+		msg info "Succesfully build $packages!"
+		exit 0 ; fi
 }
 
 install_packages() {
 	build_packages
 	# shellcheck disable=SC2086
-	if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $packages installed." ;fi
+		if [ -n "$packages" ] && xi $package_list; then msg info " Package(s) $packages installed." ;fi
 }
 
 main() {
@@ -247,11 +298,9 @@ include_additional_repos
 
 retrieve_repos
 sync_repos
-search_xtra_templates
-
-#all template dirs are copied 
-
 integrate_xtra_templates
+update_packages
+search_xtra_templates
 install_packages
 }
 
@@ -259,7 +308,7 @@ install_packages
 
 find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
-while getopts "slhb:i:x:q:" OPTION; do
+while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_sync=1;;
 		l) op_log=1;;
@@ -268,6 +317,7 @@ while getopts "slhb:i:x:q:" OPTION; do
 		i) packages="$OPTARG" && op_install=1;;
 		x) op_xbps_src="$OPTARG";;
 		q) template_query="$OPTARG" && op_query="1";;
+		u) op_update=1;;
 		*)usage ; exit 0;;
 	esac
 done
