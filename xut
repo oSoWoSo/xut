@@ -10,6 +10,10 @@
 ## this program. If not, see <https://www.gnu.org/licenses/>.
 ### SPDX short identifier: GPL-2.0-only
 
+# For debug uncomment desired set
+#set -u # End if are here unused variables
+#set -e # End on first error
+#set -x # Show what script is going to do
 
 msg() {
 	
