@@ -1,7 +1,7 @@
 #!/bin/sh
 ## Copyright (c) 2024-2025 by mobinmob  <mobinmob@disroot.org
 ##This program is free software: you can redistribute it and/or modify it under
-## the terms of the GNU General Public License as published by the Free 
+## the terms of the GNU General Public License as published by the Free
 ## Software Foundation, version 2.0 of the License.
 ## This program is distributed in the hope that it will be useful, but WITHOUT
 ## ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
@@ -12,25 +12,25 @@
 
 
 msg() {
-	
+
 	# Use colour-coded messages for informational, warning, and error output
 	#${1} is the message type, ${2} is the message content
 	#needs to be here, all messages depend on it.
 	#colours
-	
+
 	green=$(tput setaf 2)
 	red=$(tput setaf 1)
 	yellow=$(tput setaf 3)
 	fade=$(tput dim)
 	bold=$(tput bold)
 	reset_colour=$(tput sgr0)
-	
-	if [ "${1}" = "error" ]; then printf "%s\n" "${red}${bold}(!!) Error:${reset_colour} ${bold}${2}${reset_colour}" && exit 1 
+
+	if [ "${1}" = "error" ]; then printf "%s\n" "${red}${bold}(!!) Error:${reset_colour} ${bold}${2}${reset_colour}" && exit 1
 	elif [ "${1}" = "warn" ]; then printf "%s\n" "${yellow}${bold}(~~) Warning:${reset_colour} ${bold}${2} ${reset_colour}"
 	elif [ "${1}" = "info" ]; then printf "%s\n" "${green}${bold}(~>) Info:${reset_colour}  ${bold}${2} ${reset_colour}"
-	elif [ "${1}" = "debug" ]; then 
+	elif [ "${1}" = "debug" ]; then
 	[ "$op_log" -eq 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
-	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1 
+	else printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1
 	fi
 }
 
@@ -48,8 +48,8 @@ fi
 
 # Setting default configuration
 
-readonly default_repo=https://github.com/void-linux/void-packages.git
-readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages.git
+readonly default_repo=https://github.com/void-linux/void-packages
+readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 readonly default_repo_dir
 [ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
@@ -72,15 +72,15 @@ op_update=0
 
 
 usage() {
-	
+
 	#Display basic tui information
-	
+
 	cat <<-EOH
 	Usage: $(basename "$0") [options]
 
 	*x*tra *u*ser *t*emplates
 	Build and install packages for Void Linux, from the abyss-packages unofficial repo
-	
+
 	OPTIONS
 	 -s	Sync the repos.
 	 -l	Keep a log file under $conf_log_dir.
@@ -90,34 +90,34 @@ usage() {
 	 -x	Give xbps-src commands.
 	 -q <query>	Search for <query> in available templates.
 	 -u	Update packages.
-	 
+
 	EOH
 }
 
 find_repodir() {
-	
+
 	#define a proper (no slashes...) directory name for a remote git repo
-	
+
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
 }
 
 include_additional_repos() {
-	
+
 	# Add all repos to a list, repo_abyss_package is last and its contents
 	# superseed the others.
-	
+
 	repos_list="$default_repo"
 	# shellcheck disable=SC2154
 	for xtra_repo in $additional_repos; do
 		repos_list="$repos_list $xtra_repo"
 	done
-	repos_list="$repos_list $repo_abyss_packages" 
+	repos_list="$repos_list $repo_abyss_packages"
 }
 
 retrieve_repos() {
-	
+
 	# Clone every configured repo if needed.
-	
+
 	msg info "Cloning repos..."
 	for repo in $repos_list; do
 		find_repodir "$repo"
@@ -127,20 +127,20 @@ retrieve_repos() {
 			msg debug "Succesfully cloned $repo !"
 		else msg debug "$repo already exists in $repodir !" ;fi
 	done
-	
+
 	# Remove all non-upstream repo from the void-packaged clone to
 	# start from scratch
-	
+
 	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
-} 
+}
 
 sync_repos() {
-	
+
 	# Sync every configured repo.
-	
+
 	if [ "$op_sync" = 1 ]; then
 		msg info "Syncing repos..."
-		for repo in $repos_list; do 
+		for repo in $repos_list; do
 			find_repodir "$repo"
 			msg debug  "Syncing with $repo..."
 			cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
@@ -155,12 +155,12 @@ merge_xtra_templates() {
 	# Merge all available template directories to
 	# a temporary directory, later list
 	# entries take precedence (override previous).
-	
+
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
 			for dir in "$conf_workdir"/"$repodir"/* ; do
-				if [ -e "$dir"/template ]; then		
+				if [ -e "$dir"/template ]; then
 					# shellcheck disable=SC2086
 					cp -r "$dir" "$merged_dir" \
 					 || msg error "Cannot merge templates from $repo... " ; fi
@@ -172,18 +172,18 @@ merge_xtra_templates() {
 }
 
 integrate_xtra_templates() {
-	
+
 	# Copy merged directory contents to the srcpkgs/ of the
 	# void-packages clone.
-	
+
 	merge_xtra_templates
 	cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
 }
 
 xbps_src_command() {
-	
+
 	# Give xbps-src commands directly to the merged repository.
-	
+
 	cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change directory into $default_repo_dir"
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
 	./xbps-src "$op_xbps_src" || msg error "Cannot execute <xbps-src $op_xbps_src>"
@@ -191,29 +191,29 @@ xbps_src_command() {
 }
 
 search_xtra_templates() {
-	
+
 	# Search available templates.
-	
+
 	if [ "$op_query" -eq 1 ]; then
 		msg info "Searching for <$template_query> ..."
 		query_results=$(echo "$template_list" | tr " " "\n" | awk /"$template_query"/)
-		if [ -n "$query_results" ]; then 
+		if [ -n "$query_results" ]; then
 			msg info "Search results :"
-			for result in ${query_results}; do 
+			for result in ${query_results}; do
 				printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"; done
 		exit 0
 		else msg warn "No templates found!" && exit 0 ; fi
 
 	# The following lets the programm continue if no query is actually needed.
-	
-	else msg debug "No template search requested.." && return ; fi	
+
+	else msg debug "No template search requested.." && return ; fi
 }
 
 discover_updates() {
 
 	# Compare versions of available templates to these of installed
 	# packages and create a list of packages to update.
-	
+
 	for template in $template_list; do
 		 if xbps-query -p pkgname "$template" > /dev/null ; then
 		 	templates_to_check="$templates_to_check $template"; fi ; done
@@ -230,7 +230,7 @@ discover_updates() {
 update_packages() {
 
 	# Build and install available updates.
-	
+
 	if [ "$op_update" = 1 ]; then
 		discover_updates
 		if [ -n "$templates_to_update" ]
@@ -243,38 +243,38 @@ update_packages() {
 }
 
 build_packages() {
-	
+
 	# Prepare for installation
 	## Enable building restricted packages
-	
+
 	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf ; then
 		msg debug "Building restricted packages is enabled!"
-	else 
+	else
 		msg info "Enable building restricted packages!"
 		printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
 	fi
-	
+
 	## Boostrap if masterdir is not populated
-	
+
 	if [ ! -e "$conf_workdir"/"$default_repo_dir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ];
 	then cd "$conf_workdir"/"$default_repo_dir" || msg error "Cannot change to $conf_workdir"/"$default_repo_dir"
 		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"; fi
-	
+
 	# Start package build
-	
+
 	if [ "$op_build" -eq 1 ] && [ "$op_install" -eq 1 ]; then
 		msg error " -b and -i arguments cannot be used at the same time"; fi
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
-	for package in $package_list; do 
+	for package in $package_list; do
 		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg -E "$package"
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
-	
+
 	# Exit program if build_packages() is called by itself.
-	
-	if [ -n "$packages" ] && [ "$op_install" -eq 0 ]; then 
+
+	if [ -n "$packages" ] && [ "$op_install" -eq 0 ]; then
 		msg info "Succesfully build $packages!"
 		msg info "Packages are in $conf_workdir/$default_repo_dir/hostdir/.
 You can install them with xbps or by running <xut -i>."
