@@ -282,7 +282,7 @@ build_packages() {
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for package in $package_list; do
-		cd "$conf_workdir"/"$default_repo_dir" -  && ./xbps-src pkg -E "$package"
+		cd "$conf_workdir"/"$default_repo_dir" && ./xbps-src pkg -E "$package"
 		cmd_status=$?
 		[ "$cmd_status" != 0 ] && msg error "$package build failed, see above!"
 	done
