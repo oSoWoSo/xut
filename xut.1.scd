@@ -11,11 +11,11 @@ XUT(1)
 # DESCRIPTION
 
 The xut utility used unofficial user-provided templates for xbps-src in git repos to provide
-additional software for a void-linux installation. 
+additional software for a void-linux installation.
 
 # OPTIONS
 
-*-s*	
+*-s*
 	Sync the configured repositories.
 
 *-l*
@@ -24,48 +24,48 @@ additional software for a void-linux installation.
 *-h*
 	Display usage information.
 
-
 *-b <package1,package2>*
 	Build a list of (comma-seperated) packages.
 
 *-i <package1,package2>*
 	Build and install a list of (comma-seperated) packages.
-		
-*-x* 
+
+*-x*
 	Executed xbps-src commands.
-	
+
 *-q* <query>
 	Search for <query> in available templates.
-	
+
 *-u*
 	Update packages.
-	
+
 
 ## Notes for cli arguments
 	- If *-x* is used, *-b*, *-i* and *-q* will be ignored.
 	- *-b* and *-i* cannot be used in the same command.
-	- *-l* and *-s* are meant to be used with some arguments (*-x,*, *-b*  *-i* and *-u*).
+	- *-l* and *-s* are meant to be used with some arguments (*-x*, *-b*, *-i* and *-u*).
 	- *-l* enables "debug" messages in the output, which becomes more verbose.
 
 # CONFIGURATION
 
 	*xut* has very limited configuration.
-	By default it clones and syncs the void-packages repository and the abyss-packages from codeberg
+	By default it clones and syncs the abyss-packages from codeberg and the void-packages repository
 	and uses the templates of the second one to build and install additional packages.
-	It can be used without any additional configuration, but it can be configured by a _.xutconf_ file.
+	It can be used without any additional configuration, but it can be configured by a _$HOME/xutconf_ or
+	_$XDG_CONFIG_HOME/xutconf_ file. There could be also added another extra repository.
 	Please see the sample configuration in _/usr/share/doc/xutconf.sample_ for more.
-	By default, *xut* uses the _$HOME/.xut_ directory as a working directory. It clones and syns repos there, keeps logs
-	if the user enables that with the *-l* arguments in the log/ subdirectory.
-	
+	By default, *xut* uses the _$HOME/.xut_ directory as a working directory.
+	It clones and sync repos there, keeps logs if the user enables that with the *-l* argument in the log/ subdirectory.
+
 
 # EXAMPLES
 
 	- Build packages (without installing them):
-		*'xut -b package1,package2'*	
+		*'xut -b package1,package2'*
 	- Sync repos and install packages:
-		*'xut -si package1,package2'*	
+		*'xut -si package1,package2'*
 	- Use the above command with logging enabled:
-		*'xut -sli package1,package2'*		
+		*'xut -sli package1,package2'*
 	- Execute an xbps-command in the merged repo:
 		*'xut -x <command>'*
 	- Update packages after syncing repos:
