@@ -1,0 +1,46 @@
+variables:
+  - &void_image 'ghcr.io/void-linux/void-glibc-full:latest'
+
+when:
+  - branch: master
+    event: [ push, manual, cron ]
+
+steps:
+  "Install shellspec, pull xut and run tests":
+    image: *void_image
+    commands:
+      - xbps-install -S
+      - xbps-install -uy xbps
+      - xbps-install -y wget make git
+      - make install
+      - wget https://github.com/shellspec/shellspec/archive/0.28.1.tar.gz
+      - tar xzf 0.28.1.tar.gz
+      - ln -s "$(pwd)/shellspec-0.28.1/shellspec" /usr/local/bin/shellspec
+
+      - echo "Creating new user 'tester'..."
+      # Create the user with a home directory
+      - useradd -m -s /bin/sh tester
+
+      # Run test as root
+      - shellspec $(pwd)/spec/xut_root_spec.sh --color --format documentation
+      # Ownership change to tester for the current directory
+      - chown -R tester:tester .
+      - mkdir -p /tmp/xut_tmp
+      - chown -R tester:tester /tmp/xut_tmp
+      # Run tests as user
+      - |
+        WORKDIR="$(pwd)"
+        su tester -c "
+          export SHELLSPEC_TMPDIR='$WORKDIR/.shellspec-tmp'
+          mkdir -p "$SHELLSPEC_TMPDIR"
+          cd $WORKDIR
+          shellspec ./spec/xut_spec.sh --color --format documentation
+        "
+      - |
+        WORKDIR="$(pwd)"
+        su tester -c "
+          export SHELLSPEC_TMPDIR=$(pwd)/.shellspec-tmp
+          mkdir -p "$SHELLSPEC_TMPDIR"
+          cd $WORKDIR
+          shellspec ./spec/xut_script_spec.sh --color --format documentation
+        "
