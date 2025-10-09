@@ -1,0 +1,29 @@
+variables:
+  - &void_image 'ghcr.io/void-linux/void-glibc-full:latest'
+
+when:
+  - branch: master
+    event: [ push, manual, cron ]
+
+steps:
+  "Install shellspec, pull xut and run tests":
+    image: *void_image
+    commands:
+      - xbps-install -S
+      - xbps-install -uy xbps
+      - xbps-install -y wget
+      - wget https://github.com/shellspec/shellspec/archive/0.28.1.tar.gz
+      - tar xzvf 0.28.1.tar.gz
+      - ln -s "$(pwd)/shellspec-0.28.1/shellspec" /usr/local/bin/shellspec
+      - ls -la
+      - echo "Creating new user 'developer'..."
+      # Create the user with a home directory
+      - useradd -m developer
+      - echo "developer:password123" > /tmp/user_password.txt
+      - chpasswd < /tmp/user_password.txt
+      - rm /tmp/user_password.txt # Clean up password file
+      - echo "User 'developer' created successfully."
+      - usermod --shell /bin/sh developer
+      - su -c 'whoami' developer
+      - id
+      - 'shellspec'
