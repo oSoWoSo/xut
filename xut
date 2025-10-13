@@ -57,7 +57,7 @@ fi
 
 readonly default_repo=https://github.com/void-linux/void-packages
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
-default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
+default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
 readonly default_repo_dir
 [ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
 
@@ -78,31 +78,30 @@ op_install=0
 op_xbps_src=""
 op_update=0
 
-
 usage() {
 	# Display basic tui information
 	cat <<-EOH
-	Usage: $(basename "$0") [options]
+		Usage: $(basename "$0") [options]
 
-	*x*tra *u*ser *t*emplates
-	Build and install packages for Void Linux, from the abyss-packages unofficial repo
+		*x*tra *u*ser *t*emplates
+		Build and install packages for Void Linux, from the abyss-packages unofficial repo
 
-	OPTIONS
-	 -s	Sync the repos.
-	 -l	Keep a log file under $conf_log_dir.
-	 -h	Display this usage information.
-	 -b	<package1,package2> Build a list of (comma-separated) packages.
-	 -i	<package1,package2>	Build and install a list of (comma-seperated) packages.
-	 -x	Give xbps-src commands.
-	 -q <query>	Search for <query> in available templates.
-	 -u	Update packages.
+		OPTIONS
+		 -s         Sync the repos.
+		 -l         Keep a log file under $conf_log_dir.
+		 -h         Display this usage information.
+		 -b <package1,package2>  Build a list of (comma-separated) packages.
+		 -i <package1,package2>  Build and install a list of (comma-seperated) packages.
+		 -x         Give xbps-src commands.
+		 -q <query> Search for <query> in available templates.
+		 -u         Update packages.
 
 	EOH
 }
 
 find_repodir() {
 	# Define a proper (no slashes...) directory name for a remote git repo
-	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }'| tr "/" "_")
+	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
 }
 
 include_additional_repos() {
@@ -122,7 +121,7 @@ retrieve_repos() {
 		find_repodir "$repo"
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			msg debug "Cloning $repo..."
-			git clone --depth 1  "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
 			msg debug "Succesfully cloned $repo !"
 		else
 			msg debug "$repo already exists in $repodir !"
@@ -139,7 +138,7 @@ sync_repos() {
 		msg info "Syncing repos..."
 		for repo in $repos_list; do
 			find_repodir "$repo"
-			msg debug  "Syncing with $repo..."
+			msg debug "Syncing with $repo..."
 			cd "$conf_workdir"/"$repodir" || msg error "Cannot change to the $conf_workdir/$repodir ..."
 			git pull "$repo" "$(git branch --show-current)" || msg error "Cannot sync to the $repo ..."
 			msg debug "Succesfully synced  $repo repo."
@@ -157,14 +156,14 @@ merge_xtra_templates() {
 		if [ "$repo" != "$default_repo" ]; then
 			if [ -d "$conf_workdir"/"$repodir"/srcpkgs ]; then
 				# Search in srcpkgs
-				for dir in "$conf_workdir"/"$repodir"/srcpkgs/* ; do
+				for dir in "$conf_workdir"/"$repodir"/srcpkgs/*; do
 					if [ -e "$dir"/template ]; then
 						#shellcheck disable=SC2086
 						cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates from $repo..."
 					fi
 				done
 			else
-				for dir in "$conf_workdir"/"$repodir"/* ; do
+				for dir in "$conf_workdir"/"$repodir"/*; do
 					if [ -e "$dir"/template ]; then
 						# shellcheck disable=SC2086
 						cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates from $repo... "
@@ -173,7 +172,7 @@ merge_xtra_templates() {
 			fi
 		fi
 	done
-	for subdir in "$merged_dir"/* ; do
+	for subdir in "$merged_dir"/*; do
 		template_list="$template_list $(basename "$subdir")"
 	done
 }
@@ -200,9 +199,9 @@ search_xtra_templates() {
 		if [ -n "$query_results" ]; then
 			msg info "Search results :"
 			for result in ${query_results}; do
-				printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"
+				printf "%s\n" "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"
 			done
-		exit 0
+			exit 0
 		else
 			msg warn "No templates found!" && exit 0
 		fi
@@ -216,7 +215,7 @@ discover_updates() {
 	# Compare versions of available templates to these of installed
 	# packages and create a list of packages to update.
 	for template in $template_list; do
-		if xbps-query -p pkgname "$template" > /dev/null ; then
+		if xbps-query -p pkgname "$template" >/dev/null; then
 			templates_to_check="$templates_to_check $template"
 		fi
 	done
@@ -236,8 +235,8 @@ update_packages() {
 	# Build and install available updates.
 	if [ "$op_update" = 1 ]; then
 		discover_updates
-		if [ -n "$templates_to_update" ]
-			then msg info "Updating $templates_to_update ..."
+		if [ -n "$templates_to_update" ]; then
+			msg info "Updating $templates_to_update ..."
 		else
 			msg warn "No updates available" && exit 0
 		fi
@@ -251,11 +250,11 @@ build_packages() {
 	# Prepare for installation
 
 	# Enable building restricted packages
-	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf ; then
+	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$conf_workdir"/"$default_repo_dir"/etc/conf; then
 		msg debug "Building restricted packages is enabled!"
 	else
 		msg info "Enable building restricted packages!"
-		printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >> "$conf_workdir"/"$default_repo_dir"/etc/conf;
+		printf "%s" "XBPS_ALLOW_RESTRICTED=yes" "\n" >>"$conf_workdir"/"$default_repo_dir"/etc/conf
 	fi
 
 	# Bootstrap if masterdir is not populated
@@ -314,15 +313,21 @@ find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
 while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
-		s) op_sync=1;;
-		l) op_log=1;;
-		h) usage ; exit 0;;
-		b) packages="$OPTARG" && op_build=1;;
-		i) packages="$OPTARG" && op_install=1;;
-		x) op_xbps_src="$OPTARG";;
-		q) template_query="$OPTARG" && op_query=1;;
-		u) op_update=1;;
-		*)usage ; exit 0;;
+		s) op_sync=1 ;;
+		l) op_log=1 ;;
+		h)
+			usage
+			exit 0
+			;;
+		b) packages="$OPTARG" && op_build=1 ;;
+		i) packages="$OPTARG" && op_install=1 ;;
+		x) op_xbps_src="$OPTARG" ;;
+		q) template_query="$OPTARG" && op_query=1 ;;
+		u) op_update=1 ;;
+		*)
+			usage
+			exit 0
+			;;
 	esac
 done
 
