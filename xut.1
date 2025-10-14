@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "XUT" "1" "2025-08-04"
+.TH "XUT" "1" "2025-10-08"
 .PP
 .SH NAME
 .PP
@@ -18,11 +18,11 @@
 .SH DESCRIPTION
 .PP
 The xut utility used unofficial user-provided templates for xbps-src in git repos to provide
-additional software for a void-linux installation.\& 
+additional software for a void-linux installation.\&
 .PP
 .SH OPTIONS
 .PP
-\fB-s\fR	
+\fB-s\fR
 .RS 4
 Sync the configured repositories.\&
 .PP
@@ -36,7 +36,6 @@ Enable logging to a file.\&
 .RS 4
 Display usage information.\&
 .PP
-.PP
 .RE
 \fB-b <package1,package2>\fR
 .RS 4
@@ -48,7 +47,7 @@ Build a list of (comma-seperated) packages.\&
 Build and install a list of (comma-seperated) packages.\&
 .PP
 .RE
-\fB-x\fR 
+\fB-x\fR
 .RS 4
 Executed xbps-src commands.\&
 .PP
@@ -72,7 +71,7 @@ If \fB-x\fR is used, \fB-b\fR, \fB-i\fR and \fB-q\fR will be ignored.\&
 .IP \(bu 4
 \fB-b\fR and \fB-i\fR cannot be used in the same command.\&
 .IP \(bu 4
-\fB-l\fR and \fB-s\fR are meant to be used with some arguments (\fB-x,\fR, \fB-b\fR  \fB-i\fR and \fB-u\fR).\&
+\fB-l\fR and \fB-s\fR are meant to be used with some arguments (\fB-x\fR, \fB-b\fR, \fB-i\fR and \fB-u\fR).\&
 .IP \(bu 4
 \fB-l\fR enables "debug" messages in the output, which becomes more verbose.\&
 .PD
@@ -82,12 +81,13 @@ If \fB-x\fR is used, \fB-b\fR, \fB-i\fR and \fB-q\fR will be ignored.\&
 .PP
 .RS 4
 \fBxut\fR has very limited configuration.\&
-By default it clones and syncs the void-packages repository and the abyss-packages from codeberg
+By default it clones and syncs the abyss-packages from codeberg and the void-packages repository
 and uses the templates of the second one to build and install additional packages.\&
-It can be used without any additional configuration, but it can be configured by a \fI.\&xutconf\fR file.\&
+It can be used without any additional configuration, but it can be configured by a \fI$HOME/xutconf\fR or
+\fI$XDG_CONFIG_HOME/xutconf\fR file.\& There could be also added another extra repository.\&
 Please see the sample configuration in \fI/usr/share/doc/xutconf.\&sample\fR for more.\&
-By default, \fBxut\fR uses the \fI$HOME/.\&xut\fR directory as a working directory.\& It clones and syns repos there, keeps logs
-if the user enables that with the \fB-l\fR arguments in the log/ subdirectory.\&
+By default, \fBxut\fR uses the \fI$HOME/.\&xut\fR directory as a working directory.\&
+It clones and sync repos there, keeps logs if the user enables that with the \fB-l\fR argument in the log/ subdirectory.\&
 .PP
 .PP
 .RE
@@ -101,7 +101,7 @@ Build packages (without installing them):
 .PD
 .RE
 .RE
-\fB'\&xut -b package1,package2'\&\fR	
+\fB'\&xut -b package1,package2'\&\fR
 .RS 4
 .PD 0
 .IP \(bu 4
@@ -110,7 +110,7 @@ Sync repos and install packages:
 .PD
 .RE
 .RE
-\fB'\&xut -si package1,package2'\&\fR	
+\fB'\&xut -si package1,package2'\&\fR
 .RS 4
 .PD 0
 .IP \(bu 4
@@ -119,7 +119,7 @@ Use the above command with logging enabled:
 .PD
 .RE
 .RE
-\fB'\&xut -sli package1,package2'\&\fR		
+\fB'\&xut -sli package1,package2'\&\fR
 .RS 4
 .PD 0
 .IP \(bu 4

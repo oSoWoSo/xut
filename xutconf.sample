@@ -1,11 +1,11 @@
 ## xutconf.sample
 ## This is sample configuration for xut. If someone wants to alter the configuration,
-## they should copy, modify and rename the file in $XDG_CONFIG_HOME/.xutconf or $HOME"/.xutconf
+## they should copy, modify and rename the file in $XDG_CONFIG_HOME/xutconf or $HOME/xutconf
 ## Both locations are searched.
 
 # conf_workdir is the directory where xut works. It is $HOME/.xut by default.
 # You can uncomment and change to a different dir if you want to.
-#conf_workdir='$HOME"/.xut
+conf_workdir="${HOME}/.xut"
 
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the
