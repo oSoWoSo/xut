@@ -296,7 +296,7 @@ build_packages() {
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for argument in s l h b u i; do
-			first_arg=$(echo $package_list | awk {'print $1}')
+			first_arg=$(echo $package_list | awk '{print $1}')
 			if [ $argument = "$first_arg" ]; then
 				msg error "The *$argument* argument cannot be used in that place, a package name is expected!"
 			fi
