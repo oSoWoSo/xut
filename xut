@@ -176,6 +176,53 @@ sync_repos() {
 	done
 }
 
+should_copy_template() {
+	source_template="$1"
+	dest_template="$2"
+	if [ ! -f "$dest_template" ]; then
+		msg debug "Merging $template_name"
+		op_changed=1
+		return 0
+	fi
+	get_version "$source_template"
+	src_version=$version
+	get_revision "$source_template"
+	src_revision=$revision
+
+	get_version "$dest_template"
+	dest_version=$version
+	get_revision "$dest_template"
+	dest_revision=$revision
+
+	msg debug "  Comparing: src(${src_version}_${src_revision}) vs dest(${dest_version}_${dest_revision})"
+	# Remove dots from versions for integer comparison
+	src_version_int=$(echo "$src_version" | sed 's/\.//g')
+	dest_version_int=$(echo "$dest_version" | sed 's/\.//g')
+	# Compare versions
+	if [ "$src_version_int" -gt "$dest_version_int" ] 2>/dev/null; then
+		msg info "Merging newer $template_name version"
+		op_changed=1
+		return 0
+	elif [ "$src_version_int" -lt "$dest_version_int" ] 2>/dev/null; then
+		msg warn "$template_name version is older, skipping"
+		return 1
+	fi
+	# Versions are same, compare revision only
+	if [ "$src_version_int" = "$dest_version_int" ]; then
+		if [ "$src_revision" -gt "$dest_revision" ]; then
+			msg info "Merging newer $template_name revision"
+			op_changed=1
+			return 0
+		elif [ "$src_revision" = "$dest_revision" ]; then
+			msg warn "$template_name version and revision is same, skipping"
+			return 1
+		else
+			msg warn "$template_name revision is older, skipping"
+			return 1
+		fi
+	fi
+}
+
 merge_xtra_templates() {
 	# Merge all available template directories to a temporary directory,
 	# later list entries take precedence (override previous).
