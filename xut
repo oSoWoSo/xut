@@ -98,7 +98,7 @@ usage() {
 		 -u                      Update packages.
 
 	 The options are given together. For example in order to sync,
-	 enable loging and install <package> the cli command is
+	 enable logging and install <package> the cli command is
 	 <xut -sli package>.
 
 	EOH
@@ -145,7 +145,7 @@ retrieve_repos() {
 			op_changed=1
 			msg debug "Cloning $repo..."
 			git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
-			msg debug "Succesfully cloned $repo !"
+			msg debug "Successfully cloned $repo !"
 		else
 			msg debug "$repo already exists in $repodir !"
 		fi
@@ -323,7 +323,7 @@ build_packages() {
 
 	# Exit program if build_packages() is called by itself.
 	if [ -n "$packages" ] && [ "$op_install" -eq 0 ]; then
-		msg info "Succesfully build $packages!"
+		msg info "Successfully build $packages!"
 		msg info "Packages are in $conf_workdir/$default_repo_dir/hostdir/.
 You can install them with xbps or by running <xut -i>."
 		exit 0
