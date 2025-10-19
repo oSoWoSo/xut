@@ -257,7 +257,17 @@ merge_xtra_templates() {
 		fi
 	done
 }
+
+update_template_list() {
+	msg debug "Creating list of templates (This will take a while)"
+	template_list=""
+	for subdir in "$conf_workdir/$default_repo_dir/srcpkgs/"*; do
+		[ -d "$subdir" ] && template_list="$template_list $(basename "$subdir")"
 	done
+	echo "$template_list" > "$conf_workdir"/template_list
+	msg debug "Template merge completed."
+	msg info "
+	Available templates: ${green}${bold}$(cat "$conf_workdir"/template_list | wc -w)${reset_colour}"
 }
 
 integrate_xtra_templates() {
