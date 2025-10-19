@@ -225,30 +225,38 @@ should_copy_template() {
 
 merge_xtra_templates() {
 	# Merge all available template directories to a temporary directory,
-	# later list entries take precedence (override previous).
+	# With intelligent version-based conflict resolution.
+	# Compare against final void-packages repo - only copy if extra repo has newer version.
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
-			if [ -d "$conf_workdir"/"$repodir"/srcpkgs ]; then
-				# Search in srcpkgs
-				for dir in "$conf_workdir"/"$repodir"/srcpkgs/*; do
-					if [ -e "$dir"/template ]; then
-						#shellcheck disable=SC2086
-						cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates from $repo..."
-					fi
-				done
-			else
-				for dir in "$conf_workdir"/"$repodir"/*; do
-					if [ -e "$dir"/template ]; then
-						# shellcheck disable=SC2086
-						cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates from $repo... "
-					fi
-				done
+			msg info "Merging templates from ${green}${bold}$repo${reset_colour}"
+			search_path="$conf_workdir/$repodir"
+			if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
+				search_path="$conf_workdir/$repodir/srcpkgs"
 			fi
+			msg debug "Searching in $search_path"
+			for dir in "$search_path"/*; do
+				[ ! -d "$dir" ] && continue
+				[ ! -e "$dir/template" ] && continue
+
+				template_name=$(basename "$dir")
+				source_template="$dir/template"
+				# Check against final void-packages repo
+				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
+
+				if should_copy_template "$source_template" "$dest_template"; then
+					# Remove from merged_dir if it already exists
+					if [ -d "$merged_dir/$template_name" ]; then
+						msg debug "Removing old merged version: $template_name"
+						rm -rf "$merged_dir/$template_name" || msg error "Cannot remove old $template_name"
+					fi
+					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+				fi
+			done
 		fi
 	done
-	for subdir in "$merged_dir"/*; do
-		template_list="$template_list $(basename "$subdir")"
+}
 	done
 }
 
