@@ -340,6 +340,18 @@ search_templates() {
 		msg debug "No template search requested.."
 		return
 	fi
+	msg info "Searching for <$template_query> ..."
+	query_results=$(cat "$conf_workdir"/template_list | tr " " "\n" | awk /"$template_query"/)
+	if [ -n "$query_results" ]; then
+		msg info "Search results :"
+		for result in ${query_results}; do
+			printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"
+		done
+		exit 0
+	else
+		msg warn "No templates found!"
+		exit 0
+	fi
 
 	# Update template_list if not exist
 	if [ ! -f "$conf_workdir"/all_templates ]; then
@@ -348,10 +360,8 @@ search_templates() {
 
 	msg info "Searching for <$template_query> ..."
 	found=0
-
 	for file in "$conf_workdir"/templates_* "$conf_workdir"/void_templates; do
 		[ ! -f "$file" ] && continue
-
 		if grep -q "$template_query" "$file"; then
 			found=1
 			file_name=$(basename "$file")
@@ -365,7 +375,6 @@ search_templates() {
 			done
 		fi
 	done
-
 	if [ "$found" -eq 0 ]; then
 		msg warn "No templates found!"
 	fi
