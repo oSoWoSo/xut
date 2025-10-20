@@ -303,21 +303,26 @@ xbps_src_command() {
 
 search_templates() {
 	# Search available templates.
-	if [ "$op_query" -eq 1 ]; then
-		msg info "Searching for <$template_query> ..."
-		query_results=$(cat "$conf_workdir"/master_template_list | tr " " "\n" | awk /"$template_query"/)
-		if [ -n "$query_results" ]; then
-			msg info "Search results :"
-			for result in ${query_results}; do
-				printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"
-			done
+	if [ ! "$op_query" -eq 1 ]; then
+		msg debug "No template search requested.."
+		return
+	fi
+
+	# Update template_list if not exist
+	if [ ! -f "$conf_workdir"/all_templates ]; then
+		update_template_list
+	fi
+
+	msg info "Searching for <$template_query> ..."
+	query_results=$(cat "$conf_workdir"/template_list | tr " " "\n" | awk /"$template_query"/)
+	if [ -n "$query_results" ]; then
+		msg info "Search results :"
+		for result in ${query_results}; do
+			printf "%s\n"  "${green}(*)${reset_colour} ${bold}${result}${reset_colour}"
+		done
 		exit 0
-		else
-			msg warn "No templates found!" && exit 0
-		fi
-	# The following lets the programm continue if no query is actually needed.
 	else
-		msg debug "No template search requested.." && return
+		msg warn "No templates found!" && exit 0
 	fi
 }
 
