@@ -78,6 +78,9 @@ op_install=0
 op_xbps_src=""
 op_update=0
 op_changed=0
+op_retrieve=0
+op_sync=0
+op_integrate=0
 
 usage() {
 	# Display basic tui information
@@ -134,6 +137,10 @@ include_additional_repos() {
 }
 
 retrieve_repos() {
+	if [ ! "$op_retrieve" = 1 ]; then
+		msg debug "Not retrieving repos..."
+		return
+	fi
 	# Clone every configured repo if needed.
 	msg info "Cloning repos..."
 	for repo in $repos_list; do
@@ -150,11 +157,12 @@ retrieve_repos() {
 
 	# Remove all non-upstream repo from the void-packaged clone to start from scratch
 	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
+	op_sync=1
 }
 
 sync_repos() {
 	# Sync every configured repo.
-	if [ "$op_sync" != 1 ]; then
+	if [ ! "$op_sync" = 1 ]; then
 		msg debug "Not syncing repos..."
 		return
 	fi
@@ -171,6 +179,7 @@ sync_repos() {
 		git pull "$repo" "$current_branch" || msg error "Cannot sync to $repo"
 		msg info "Successfully synced $repo"
 	done
+	op_integrate=1
 }
 
 should_copy_template() {
@@ -435,7 +444,7 @@ find "$conf_log_dir" -name "xut_*.log" -print | tail -n+5 | xargs rm -f
 
 while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
-		s) op_sync=1 ;;
+		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
 		h)
 			usage
