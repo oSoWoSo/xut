@@ -340,6 +340,12 @@ search_templates() {
 		msg debug "No template search requested.."
 		return
 	fi
+
+	# Update template_list if not exist
+	if [ ! -f "$conf_workdir"/template_list ]; then
+		update_template_list
+	fi
+
 	msg info "Searching for <$template_query> ..."
 	query_results=$(cat "$conf_workdir"/template_list | tr " " "\n" | awk /"$template_query"/)
 	if [ -n "$query_results" ]; then
