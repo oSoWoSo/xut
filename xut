@@ -43,9 +43,9 @@ msg() {
 # Get the configuration from the conf file if it exists.
 
 #shellcheck disable=SC1091
-if [ -e "$XDG_CONFIG_HOME"/xutconf ]; then
-	. "$XDG_CONFIG_HOME"/xutconf
-	msg info "Using configuration from $XDG_CONFIG_HOME/xutconf."
+if [ -e "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf ]; then
+	. "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf
+	msg info "Using configuration from ${XDG_CONFIG_HOME:-$HOME/.config}/xutconf."
 elif [ -e "$HOME"/xutconf ]; then
 	. "$HOME"/xutconf
 	msg info "Using configuration from $HOME/xutconf."
