@@ -216,9 +216,7 @@ integrate_xtra_templates() {
 
 update_template_list() {
 	msg info "Creating list of templates (This will take a while)"
-	for subdir in "$conf_workdir/$default_repo_dir/srcpkgs/"* ; do
-		master_template_list="$master_template_list $(basename "$subdir")"
-	done
+	master_template_list=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
 	echo "$master_template_list" > "$conf_workdir"/master_template_list
 	msg debug "Template merge completed."
 	msg info "Available templates: ${green}${bold}$(cat $conf_workdir/master_template_list | wc -w)${reset_colour}"
@@ -350,7 +348,7 @@ main() {
 	sync_repos
 	integrate_xtra_templates
 	if [ ! -f "$conf_workdir"/master_template_list ]; then update_template_list && lists_updated=1; fi
-	if [ "$op_changed" = 1 ] && [ -z lists_updated ] ; then update_template_list ; fi
+	if [ "$op_changed" = 1 ] && [ -z "$lists_updated" ] ; then update_template_list ; fi
 	update_packages
 	search_templates
 	install_packages
