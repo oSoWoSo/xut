@@ -288,7 +288,7 @@ update_template_list() {
 	for subdir in "$conf_workdir/$default_repo_dir"/srcpkgs/*; do
 		[ -d "$subdir" ] && all_templates="$all_templates $(basename "$subdir")"
 	done
-	echo "$all_templates" > "$conf_workdir"/all_templates
+	echo "$all_templates" | tr ' ' '\n' > "$conf_workdir"/all_templates
 	for list in  "$conf_workdir"/templates_*; do
 		cat "$list" >> "$conf_workdir"/xtra_templates
 	done
