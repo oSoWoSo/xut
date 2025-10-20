@@ -282,16 +282,27 @@ merge_xtra_templates() {
 }
 
 update_template_list() {
+	# First remove all templates lists
+	if [ "$op_log" != 1 ]; then
+		rm -f "$conf_workdir"/templates_*
+		rm -f "$conf_workdir"/*_templates
+	else
+		rm -v "$conf_workdir"/templates_* 2>/dev/null
+		rm -v "$conf_workdir"/*_templates 2>/dev/null
+	fi
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
 	all_templates=""
-	for subdir in "$conf_workdir/$default_repo_dir"/srcpkgs/*; do
-		[ -d "$subdir" ] && all_templates="$all_templates $(basename "$subdir")"
+	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
+	echo "$all_templates" | tr ' ' '\n' > "$conf_workdir"/all_templates_source
+	for list in "$conf_workdir"/templates_*; do
+		cat "$list" >> "$conf_workdir"/xtra_templates_source
 	done
-	echo "$all_templates" | tr ' ' '\n' > "$conf_workdir"/all_templates
-	for list in  "$conf_workdir"/templates_*; do
-		cat "$list" >> "$conf_workdir"/xtra_templates
-	done
+	# Uniq and sort template lists
+	cat "$conf_workdir"/xtra_templates_source | sort -u > "$conf_workdir"/xtra_templates
+	rm -f "$conf_workdir"/xtra_templates_source
+	cat "$conf_workdir"/all_templates_source | sort -u > "$conf_workdir"/all_templates
+	rm -f "$conf_workdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
 	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
