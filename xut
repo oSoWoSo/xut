@@ -328,9 +328,8 @@ merge_shlibs() {
 		fi
 	done
 
-	# Sort and write final file
-	sort -u "$shlibs_temp" > "$shlibs_final"
-	rm -f "$shlibs_temp" "$shlibs_temp.new"
+	# Write final file (no sorting - preserve order)
+	mv "$shlibs_temp" "$shlibs_final"
 
 	msg info "Shlibs merge completed"
 }
