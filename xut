@@ -276,24 +276,33 @@ merge_shlibs() {
 
 			# Read extra repo shlibs line by line
 			while IFS= read -r line; do
-				# Skip empty lines and comments
+				# Skip empty lines
 				[ -z "$line" ] && continue
+				# Skip comments
 				case "$line" in
 					\#*) continue ;;
 				esac
 
-				# Extract the library name (first field)
-				lib_name=$(echo "$line" | awk '{print $1}')
+				# Extract the SONAME (first field) and package (second field)
+				soname=$(echo "$line" | awk '{print $1}')
+				package=$(echo "$line" | awk '{print $2}')
 
-				# Check if library exists in temp file
-				if grep -q "^$lib_name " "$shlibs_temp"; then
+				# Skip if soname or package is empty
+				[ -z "$soname" ] || [ -z "$package" ] && continue
+
+				# Check if this exact soname+package combination exists
+				if grep -q "^$soname $package" "$shlibs_temp"; then
 					# Update existing entry (keep original position)
-					sed -i "s|^$lib_name .*|$line|" "$shlibs_temp"
-					msg debug "Updated shlib entry: $lib_name"
+					sed -i "/^$soname $package/c\\$line" "$shlibs_temp"
+					msg debug "Updated shlib entry: $soname $package"
+				elif grep -q "^$soname " "$shlibs_temp"; then
+					# Different package for same soname - update it
+					sed -i "/^$soname /c\\$line" "$shlibs_temp"
+					msg debug "Replaced shlib entry: $soname $package"
 				else
 					# Add new entry at the end
 					echo "$line" >> "$shlibs_temp"
-					msg debug "Added new shlib entry: $lib_name"
+					msg debug "Added new shlib entry: $soname $package"
 				fi
 			done < "$repo_shlibs"
 		else
