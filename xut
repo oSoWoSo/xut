@@ -262,8 +262,6 @@ sync_repos() {
 should_copy_template() {
 	source_template="$1"
 	dest_template="$2"
-	source_template_name=$(echo "$source_template" | awk -F '/' '{print $(NF-1)}')
-	dest_template_name=$(echo "$dest_template" | awk -F '/' '{print $(NF-1)}')
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$dest_template" ]; then
 		msg debug "Merging $template_name"
@@ -287,11 +285,11 @@ should_copy_template() {
 	src_v=$(echo "$src_version" | tr -d '.')
 	dest_v=$(echo "$dest_version" | tr -d '.')
 
-	msg debug "Comparing: $source_template_name<src>(${src_version}_${src_revision}) vs $dest_template_name<dest>(${dest_version}_${dest_revision})"
+	msg debug "Comparing: src(${src_version}_${src_revision}) vs dest(${dest_version}_${dest_revision})"
 
 	# Compare versions
 	if [ "$src_v" -gt "$dest_v" ] 2>/dev/null; then
-		msg info "newer ${green}${bold}$template_name${R} version"
+		msg info "Merging newer ${green}${bold}$template_name${reset_colour} version"
 		op_changed=1
 		return 0
 	elif [ "$src_v" -lt "$dest_v" ] 2>/dev/null; then
@@ -300,10 +298,11 @@ should_copy_template() {
 
 	# Versions equal, compare revision
 	if [ "$src_revision" -gt "$dest_revision" ] 2>/dev/null; then
-		msg info "newer ${green}${bold}$template_name${R} revision"
+		msg info "Merging newer ${green}${bold}$template_name${reset_colour} revision"
 		op_changed=1
 		return 0
 	fi
+
 	return 1
 }
 
