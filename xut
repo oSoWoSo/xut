@@ -315,13 +315,16 @@ merge_shlibs() {
 				# Extract the library name (first field)
 				lib_name=$(echo "$line" | awk '{print $1}')
 
-				# Remove existing entry for this library from temp file
-				grep -v "^$lib_name " "$shlibs_temp" > "$shlibs_temp.new" || true
-				mv "$shlibs_temp.new" "$shlibs_temp"
-
-				# Add new entry
-				echo "$line" >> "$shlibs_temp"
-				msg debug "Updated shlib entry: $lib_name"
+				# Check if library exists in temp file
+				if grep -q "^$lib_name " "$shlibs_temp"; then
+					# Update existing entry (keep original position)
+					sed -i "s|^$lib_name .*|$line|" "$shlibs_temp"
+					msg debug "Updated shlib entry: $lib_name"
+				else
+					# Add new entry at the end
+					echo "$line" >> "$shlibs_temp"
+					msg debug "Added new shlib entry: $lib_name"
+				fi
 			done < "$repo_shlibs"
 		else
 			msg debug "No shlibs file found in $repo"
