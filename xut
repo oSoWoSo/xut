@@ -241,7 +241,7 @@ should_copy_template() {
 
 merge_shlibs() {
 	# Merge common/shlibs from all repos
-	# Extra repos override void-packages entries
+	# Extra repos override void-packages entries only if soname changes
 	msg info "Merging common/shlibs files..."
 
 	shlibs_temp="$(mktemp)"
@@ -290,15 +290,22 @@ merge_shlibs() {
 				# Skip if soname or package is empty
 				[ -z "$soname" ] || [ -z "$package" ] && continue
 
-				# Check if this exact soname+package combination exists
-				if grep -q "^$soname $package" "$shlibs_temp"; then
-					# Update existing entry (keep original position)
-					sed -i "/^$soname $package/c\\$line" "$shlibs_temp"
-					msg debug "Updated shlib entry: $soname $package"
-				elif grep -q "^$soname " "$shlibs_temp"; then
-					# Different package for same soname - update it
-					sed -i "/^$soname /c\\$line" "$shlibs_temp"
-					msg debug "Replaced shlib entry: $soname $package"
+				# Check if soname exists in temp file
+				if grep -q "^$soname " "$shlibs_temp"; then
+					# Get existing entry
+					existing_line=$(grep "^$soname " "$shlibs_temp" | head -1)
+					existing_soname=$(echo "$existing_line" | awk '{print $1}')
+
+					# Only update if soname is identical (version hasn't changed)
+					if [ "$existing_soname" = "$soname" ]; then
+						msg debug "SONAME unchanged, keeping original package for: $soname"
+						continue
+					else
+						# SONAME changed, update the entry
+						escaped_line=$(printf '%s\n' "$line" | sed 's/[&/\]/\\&/g')
+						sed -i "s|^$soname .*|$escaped_line|" "$shlibs_temp"
+						msg debug "SONAME changed, updated entry: $soname $package"
+					fi
 				else
 					# Add new entry at the end
 					echo "$line" >> "$shlibs_temp"
