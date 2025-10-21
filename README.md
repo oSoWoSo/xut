@@ -32,7 +32,8 @@ official repos. It clones both the void-packages and abyss-packages repository (
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
 - [x] Implement a way to handle package updates gracefully. [**-u argument**]
-- [x] Search for a practical way to enable more than one unofficial repos [**naive implementation merged from the manyrepos branch**]
+- [x] Search for a practical way to enable more than one unofficial repos ~[**naive implementation merged from the manyrepos branch**]~
+(Inteligent merging by @zenobit available from 0.4.0).
 - [ ] ... (suggestions are welcome, working code even more welcome)
 
 ### Usage
