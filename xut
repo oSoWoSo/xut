@@ -107,6 +107,44 @@ usage() {
 	EOH
 }
 
+show_progress() {
+	# Show a spinner to indicate the script is working
+	# Usage: long_running_command & show_progress $!
+	pid=$1
+	i=0
+	# Define colors
+	white=$(tput setaf 7)
+	while kill -0 "$pid" 2>/dev/null; do
+		case $i in
+			0) char='|'; color="$yellow" ;;
+			1) char='/'; color="$green" ;;
+			2) char='-'; color="$white" ;;
+			3) char='\'; color="$red" ;;
+		esac
+		printf "\r${color}%s${reset_colour} " "$char"
+		i=$(( (i+1) %4 ))
+		sleep 0.1
+	done
+	printf "\r"
+}
+
+show_progress_UTF8() {
+	# Show a spinner to indicate the script is working
+	# Usage: long_running_command & show_progress $!
+	pid=$1
+	spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+	i=0
+
+	while kill -0 "$pid" 2>/dev/null; do
+		# Extract character using cut instead of substring
+		char=$(printf "%s" "$spin" | cut -c$((i+1)))
+		printf "\r${green}%s${reset_colour} " "$char"
+		i=$(( (i+1) %10 ))
+		sleep 0.1
+	done
+	printf "\r"
+}
+
 find_repodir() {
 	# Define a proper (no slashes...) directory name for a remote git repo
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
