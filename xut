@@ -239,6 +239,70 @@ should_copy_template() {
 	return 1
 }
 
+merge_shlibs() {
+	# Merge common/shlibs from all repos
+	# Extra repos override void-packages entries
+	msg info "Merging common/shlibs files..."
+
+	shlibs_temp="$(mktemp)"
+	shlibs_final="$conf_workdir/$default_repo_dir/common/shlibs"
+
+	# Start with void-packages shlibs as base
+	if [ -f "$shlibs_final" ]; then
+		cp "$shlibs_final" "$shlibs_temp" || msg error "Cannot copy base shlibs file"
+		msg debug "Copied base shlibs from void-packages"
+	else
+		msg error "No shlibs file found in void-packages"
+		touch "$shlibs_temp"
+	fi
+
+	# Process each extra repo
+	for repo in $repos_list; do
+		find_repodir "$repo"
+
+		# Skip void-packages (already processed)
+		[ "$repo" = "$default_repo" ] && continue
+
+		repo_shlibs=""
+		# Check both possible locations
+		if [ -f "$conf_workdir/$repodir/common/shlibs" ]; then
+			repo_shlibs="$conf_workdir/$repodir/common/shlibs"
+		elif [ -f "$conf_workdir/$repodir/shlibs" ]; then
+			repo_shlibs="$conf_workdir/$repodir/shlibs"
+		fi
+
+		if [ -n "$repo_shlibs" ] && [ -f "$repo_shlibs" ]; then
+			msg info "Merging shlibs from ${green}${bold}$repo${reset_colour}"
+
+			# Read extra repo shlibs line by line
+			while IFS= read -r line; do
+				# Skip empty lines and comments
+				[ -z "$line" ] && continue
+				echo "$line" | grep -q "^#" && continue
+
+				# Extract the library name (first field)
+				lib_name=$(echo "$line" | awk '{print $1}')
+
+				# Remove existing entry for this library from temp file
+				grep -v "^$lib_name " "$shlibs_temp" > "$shlibs_temp.new" || true
+				mv "$shlibs_temp.new" "$shlibs_temp"
+
+				# Add new entry
+				echo "$line" >> "$shlibs_temp"
+				msg debug "Updated shlib entry: $lib_name"
+			done < "$repo_shlibs"
+		else
+			msg debug "No shlibs file found in $repo"
+		fi
+	done
+
+	# Sort and write final file
+	sort -u "$shlibs_temp" > "$shlibs_final"
+	rm -f "$shlibs_temp" "$shlibs_temp.new"
+
+	msg info "Shlibs merge completed"
+}
+
 merge_xtra_templates() {
 	# First remove all templates lists
 	if [ "$op_log" = 0 ]; then
@@ -317,23 +381,22 @@ integrate_xtra_templates() {
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
 	merge_xtra_templates
-	# Check if merged_dir has any content
-	if [ -n "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
-		# Remove original directories from void-packages to avoid stale patches
-		msg debug "Cleaning older package directories from void-packages"
-		for merged_pkg in "$merged_dir"/*; do
-			pkg_name=$(basename "$merged_pkg")
-			original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
-			if [ -d "$original_pkg" ]; then
-				msg debug "Removing old package directory: $pkg_name"
-				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
-			fi
-		done
-		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
-		msg info "Merged templates copied to srcpkgs"
-	else
-		msg info "No new or updated templates to merge"
-	fi
+
+	# Merge shlibs
+	merge_shlibs
+	# Remove original directories from void-packages to avoid stale patches
+	msg debug "Cleaning older package directories from void-packages"
+	for merged_pkg in "$merged_dir"/*; do
+		pkg_name=$(basename "$merged_pkg")
+		original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
+		if [ -d "$original_pkg" ]; then
+			msg debug "Removing old package directory: $pkg_name"
+			rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
+		fi
+	done
+
+	cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+
 	if [ "$op_changed" = 1 ]; then
 		update_template_list
 	fi
