@@ -325,7 +325,8 @@ merge_xtra_templates() {
 			repo_name=$(basename "$repo")
 			# Include both directories and symlinks
 			# Show progress during template processing
-			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
+			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+			#total=$(find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; | tee -a "$conf_workdir/templates_$repo_name" | wc -l)
 			processed=0
 			# Batch copy all templates at once, then selectively update
 			for dir in "$search_path"/*; do
@@ -333,6 +334,7 @@ merge_xtra_templates() {
 				[ ! -e "$dir/template" ] && continue
 				processed=$((processed + 1))
 				printf "\r%5d " "$processed"
+				#printf "\r%5d/%5d " "$processed" "$total"
 				template_name=$(basename "$dir")
 				source_template="$dir/template"
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
