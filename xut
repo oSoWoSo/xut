@@ -34,7 +34,7 @@ msg() {
 	elif [ "${1}" = "info" ]; then
 		printf "%s\n" "${green}${bold}(~>) Info:${reset_colour}  ${bold}${2} ${reset_colour}"
 	elif [ "${1}" = "debug" ]; then
-		[ "$op_log" -eq 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
+		[ "$op_log" = 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
 	else
 		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1
 	fi
@@ -137,7 +137,7 @@ include_additional_repos() {
 }
 
 retrieve_repos() {
-	if [ ! "$op_retrieve" = 1 ]; then
+	if [ "$op_retrieve" = 0 ]; then
 		msg debug "Not retrieving repos..."
 		return
 	fi
@@ -162,7 +162,7 @@ retrieve_repos() {
 
 sync_repos() {
 	# Sync every configured repo.
-	if [ ! "$op_sync" = 1 ]; then
+	if [ "$op_sync" = 0 ]; then
 		msg debug "Not syncing repos..."
 		return
 	fi
@@ -185,53 +185,52 @@ sync_repos() {
 should_copy_template() {
 	source_template="$1"
 	dest_template="$2"
+	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$dest_template" ]; then
 		msg debug "Merging $template_name"
 		op_changed=1
 		return 0
 	fi
-	get_version "$source_template"
-	src_version=$version
-	get_revision "$source_template"
-	src_revision=$revision
 
-	get_version "$dest_template"
-	dest_version=$version
-	get_revision "$dest_template"
-	dest_revision=$revision
+	# Extract version and revision in one grep pass for each file
+	src_data=$(grep -E "^(version|revision)=" "$source_template" 2>/dev/null)
+	dest_data=$(grep -E "^(version|revision)=" "$dest_template" 2>/dev/null)
+
+	# Parse source
+	src_version=$(echo "$src_data" | grep "^version=" | head -1 | sed -E 's/^version=["'\''[:space:]]*([0-9.]+).*/\1/')
+	src_revision=$(echo "$src_data" | grep "^revision=" | head -1 | sed -E 's/^revision=["'\''[:space:]]*([0-9]+).*/\1/')
+
+	# Parse dest
+	dest_version=$(echo "$dest_data" | grep "^version=" | head -1 | sed -E 's/^version=["'\''[:space:]]*([0-9.]+).*/\1/')
+	dest_revision=$(echo "$dest_data" | grep "^revision=" | head -1 | sed -E 's/^revision=["'\''[:space:]]*([0-9]+).*/\1/')
+
+	# Quick comparison without multiple sed calls
+	src_v=$(echo "$src_version" | tr -d '.')
+	dest_v=$(echo "$dest_version" | tr -d '.')
 
 	msg debug "Comparing: src(${src_version}_${src_revision}) vs dest(${dest_version}_${dest_revision})"
-	# Remove dots from versions for integer comparison
-	src_version_int=$(echo "$src_version" | sed 's/\.//g')
-	dest_version_int=$(echo "$dest_version" | sed 's/\.//g')
+
 	# Compare versions
-	if [ "$src_version_int" -gt "$dest_version_int" ] 2>/dev/null; then
-		msg info "Merging newer ${green}${bold}$template_name${reset_colour} version"
+	if [ "$src_v" -gt "$dest_v" ] 2>/dev/null; then
+		msg info "newer ${green}${bold}$template_name${reset_colour} version"
 		op_changed=1
 		return 0
-	elif [ "$src_version_int" -lt "$dest_version_int" ] 2>/dev/null; then
-		msg debug "$template_name version is older, skipping"
+	elif [ "$src_v" -lt "$dest_v" ] 2>/dev/null; then
 		return 1
 	fi
-	# Versions are same, compare revision only
-	if [ "$src_version_int" = "$dest_version_int" ]; then
-		if [ "$src_revision" -gt "$dest_revision" ]; then
-			msg info "Merging newer ${green}${bold}$template_name${reset_colour} revision"
-			op_changed=1
-			return 0
-		elif [ "$src_revision" = "$dest_revision" ]; then
-			msg debug "$template_name version and revision is same, skipping"
-			return 1
-		else
-			msg debug "$template_name revision is older, skipping"
-			return 1
-		fi
+
+	# Versions equal, compare revision
+	if [ "$src_revision" -gt "$dest_revision" ] 2>/dev/null; then
+		msg info "newer ${green}${bold}$template_name${reset_colour} revision"
+		op_changed=1
+		return 0
 	fi
+	return 1
 }
 
 merge_xtra_templates() {
 	# First remove all templates lists
-	if [ "$op_log" != 1 ]; then
+	if [ "$op_log" = 0 ]; then
 		rm -f "$conf_workdir"/templates_*
 		rm -f "$conf_workdir"/*_templates
 	else
@@ -240,8 +239,6 @@ merge_xtra_templates() {
 	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
-	# Compare against final void-packages repo - only copy if extra repo has newer version.
-	msg info "Processing all templates"
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
@@ -251,40 +248,38 @@ merge_xtra_templates() {
 				search_path="$conf_workdir/$repodir/srcpkgs"
 			fi
 			msg debug "Searching in $search_path"
+			# Create xtra repo templates list
+			repo_name=$(basename "$repo")
+			# Include both directories and symlinks
+			# Show progress during template processing
+			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+			processed=0
+			# Batch copy all templates at once, then selectively update
 			for dir in "$search_path"/*; do
-				[ ! -d "$dir" ] && continue
+				[ ! -d "$dir" ] && [ ! -L "$dir" ] && continue
 				[ ! -e "$dir/template" ] && continue
-
+				processed=$((processed + 1))
+				printf "\r%5d " "$processed"
 				template_name=$(basename "$dir")
 				source_template="$dir/template"
-				# Check against final void-packages repo
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
-
-				# Create xtra repo templates list
-				repo_name=$(basename "$repo")
-				echo "$template_name" >> "$conf_workdir/templates_$repo_name"
-
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
-					if [ -d "$merged_dir/$template_name" ]; then
-						msg debug "Removing old merged version: $template_name"
-						rm -rf "$merged_dir/$template_name" || msg error "Cannot remove old $template_name"
-					fi
+					[ -d "$merged_dir/$template_name" ] && rm -rf "$merged_dir/$template_name"
 					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
 				fi
 			done
+			printf "\n"
 		else
-			for dir in "$conf_workdir/$default_repo_dir"/srcpkgs/*; do
-				template_name=$(basename "$dir")
-				echo "$template_name" >> "$conf_workdir"/void_templates
-			done
+			# Include both directories and symlinks for void_templates
+			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; > "$conf_workdir"/void_templates
 		fi
 	done
 }
 
 update_template_list() {
 	# First remove all templates lists
-	#if [ "$op_log" != 1 ]; then
+	#if [ "$op_log" = 0 ]; then
 	#	rm -f "$conf_workdir"/templates_*
 	#	rm -f "$conf_workdir"/*_templates
 	#else
@@ -313,26 +308,29 @@ update_template_list() {
 }
 
 integrate_xtra_templates() {
-	if [ ! "$op_integrate" = 1 ]; then
+	if [ "$op_integrate" = 0 ]; then
 		msg debug "Integration not needed"
 		return
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
 	merge_xtra_templates
-
-	# Remove original directories from void-packages to avoid stale patches
-	msg debug "Cleaning older package directories from void-packages"
-	for merged_pkg in "$merged_dir"/*; do
-		pkg_name=$(basename "$merged_pkg")
-		original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
-		if [ -d "$original_pkg" ]; then
-			msg debug "Removing old package directory: $pkg_name"
-			rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
-		fi
-	done
-
-	cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
-
+	# Check if merged_dir has any content
+	if [ -n "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
+		# Remove original directories from void-packages to avoid stale patches
+		msg debug "Cleaning older package directories from void-packages"
+		for merged_pkg in "$merged_dir"/*; do
+			pkg_name=$(basename "$merged_pkg")
+			original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
+			if [ -d "$original_pkg" ]; then
+				msg debug "Removing old package directory: $pkg_name"
+				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
+			fi
+		done
+		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		msg info "Merged templates copied to srcpkgs"
+	else
+		msg info "No new or updated templates to merge"
+	fi
 	if [ "$op_changed" = 1 ]; then
 		update_template_list
 	fi
@@ -348,7 +346,7 @@ xbps_src_command() {
 
 search_templates() {
 	# Search available templates.
-	if [ ! "$op_query" -eq 1 ]; then
+	if [ "$op_query" = 0 ]; then
 		msg debug "No template search requested.."
 		return
 	fi
@@ -375,10 +373,10 @@ search_templates() {
 			done
 		fi
 	done
-	if [ "$found" -eq 0 ]; then
+	if [ "$found" = 0 ]; then
 		msg warn "No templates found!"
-		exit 0
 	fi
+	exit 0
 }
 
 discover_updates() {
@@ -437,7 +435,7 @@ build_packages() {
 	fi
 
 	# Start package build
-	if [ "$op_build" -eq 1 ] && [ "$op_install" -eq 1 ]; then
+	if [ "$op_build" = 1 ] && [ "$op_install" = 1 ]; then
 		msg error " -b and -i arguments cannot be used at the same time"
 	fi
 	package_list="$(echo "$packages" | tr ',' ' ')"
@@ -455,7 +453,7 @@ build_packages() {
 	done
 
 	# Exit program if build_packages() is called by itself.
-	if [ -n "$packages" ] && [ "$op_install" -eq 0 ]; then
+	if [ -n "$packages" ] && [ "$op_install" = 0 ]; then
 		msg info "Successfully build $packages!"
 		msg info "Packages are in $conf_workdir/$default_repo_dir/hostdir/.
 You can install them with xbps or by running <xut -i>."
@@ -473,7 +471,7 @@ install_packages() {
 
 main() {
 	# Check for root
-	[ "$(id -u)" -eq 0 ] && msg error "Please run the program as a user!"
+	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
 	msg info "Full command given is [xut $showargs]."
 	[ -n "$op_xbps_src" ] && xbps_src_command
 	include_additional_repos
@@ -518,7 +516,7 @@ done
 # Capture all the arguments given
 showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
-[ "$OPTIND" -eq 1 ] && usage && exit
+[ "$OPTIND" = 1 ] && usage && exit
 if [ "$op_log" = 1 ]; then
 	main "$@" 2>&1 | tee -- "$log_file"
 else
