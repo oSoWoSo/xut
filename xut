@@ -308,7 +308,9 @@ merge_shlibs() {
 			while IFS= read -r line; do
 				# Skip empty lines and comments
 				[ -z "$line" ] && continue
-				echo "$line" | grep -q "^#" && continue
+				case "$line" in
+					\#*) continue ;;
+				esac
 
 				# Extract the library name (first field)
 				lib_name=$(echo "$line" | awk '{print $1}')
