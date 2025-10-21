@@ -251,11 +251,15 @@ merge_xtra_templates() {
 			# Create xtra repo templates list
 			repo_name=$(basename "$repo")
 			# Include both directories and symlinks
+			# Show progress during template processing
 			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+			processed=0
 			# Batch copy all templates at once, then selectively update
 			for dir in "$search_path"/*; do
 				[ ! -d "$dir" ] && [ ! -L "$dir" ] && continue
 				[ ! -e "$dir/template" ] && continue
+				processed=$((processed + 1))
+				printf "\r%5d " "$processed"
 				template_name=$(basename "$dir")
 				source_template="$dir/template"
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
@@ -265,6 +269,7 @@ merge_xtra_templates() {
 					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
 				fi
 			done
+			printf "\n"
 		else
 			# Include both directories and symlinks for void_templates
 			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; > "$conf_workdir"/void_templates
