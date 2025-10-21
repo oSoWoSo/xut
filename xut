@@ -358,14 +358,16 @@ merge_shlibs() {
 				# Skip if soname or package is empty
 				[ -z "$soname" ] || [ -z "$package" ] && continue
 
+				# Escape special characters for sed
+				escaped_line=$(printf '%s\n' "$line" | sed 's/[&/\]/\\&/g')
 				# Check if this exact soname+package combination exists
 				if grep -q "^$soname $package" "$shlibs_temp"; then
 					# Update existing entry (keep original position)
-					sed -i "/^$soname $package/c\\$line" "$shlibs_temp"
+					sed -i "s|^$soname $package.*|$escaped_line|" "$shlibs_temp"
 					msg debug "Updated shlib entry: $soname $package"
 				elif grep -q "^$soname " "$shlibs_temp"; then
 					# Different package for same soname - update it
-					sed -i "/^$soname /c\\$line" "$shlibs_temp"
+					sed -i "s|^$soname .*|$escaped_line|" "$shlibs_temp"
 					msg debug "Replaced shlib entry: $soname $package"
 				else
 					# Add new entry at the end
@@ -475,11 +477,16 @@ integrate_xtra_templates() {
 		msg debug "Integration not needed"
 		return 0
 	fi
-
-	# Copy merged directory contents to the srcpkgs/ of the void-packages clone
-	merge_xtra_templates
+	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
+	merge_xtra_templates 2>&1 &
+	merge_pid=$!
+	show_progress $merge_pid
+	wait $merge_pid || msg error "Template merge failed"
 	# Merge shlibs
-	merge_shlibs
+	merge_shlibs 2>&1 &
+	shlibs_pid=$!
+	show_progress $shlibs_pid
+	wait $shlibs_pid || msg error "Shlibs merge failed"
 	# Remove original directories from void-packages to avoid stale patches
 	msg debug "Cleaning older package directories from void-packages"
 	for merged_pkg in "$merged_dir"/*; do
