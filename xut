@@ -406,13 +406,13 @@ merge_xtra_templates() {
 				search_path="$conf_workdir/$repodir/srcpkgs"
 			fi
 			msg debug "Searching in $search_path"
+
 			# Create xtra repo templates list
 			repo_name=$(basename "$repo")
-			# Include both directories and symlinks
-			# Show progress during template processing
-			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
-			#total=$(find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; | tee -a "$conf_workdir/templates_$repo_name" | wc -l)
-			processed=0
+
+			# Use find instead of for loop - much faster
+			find "$search_path" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+
 			# Batch copy all templates at once, then selectively update
 			for dir in "$search_path"/*; do
 				[ ! -d "$dir" ] && [ ! -L "$dir" ] && continue
@@ -423,47 +423,17 @@ merge_xtra_templates() {
 				template_name=$(basename "$dir")
 				source_template="$dir/template"
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
+
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
-					if [ -d "$merged_dir/$template_name" ]; then
-						rm -rf "${merged_dir:?}/$template_name"
-					fi
-
-					# Copy template directory
-					cp -rL "$dir" "$merged_dir" || msg error "Cannot merge templates"
-
-					# Extract commit metadata from source repository
-					cd "$conf_workdir/$repodir" || continue
-
-					# Get relative path for git log (srcpkgs/template_name or just template_name)
-					if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
-						git_path="srcpkgs/$template_name"
-					else
-						git_path="$template_name"
-					fi
-
-					commit_msg=$(git log -1 --format="%s" -- "$git_path" 2>/dev/null)
-					commit_author=$(git log -1 --format="%an <%ae>" -- "$git_path" 2>/dev/null)
-					commit_date=$(git log -1 --format="%aI" -- "$git_path" 2>/dev/null)
-
-					# Save commit metadata to file
-					if [ -n "$commit_msg" ]; then
-						mkdir -p "$merged_dir/$template_name"
-						cat > "$merged_dir/$template_name/.xut_commit_meta" <<-EOF
-						commit_msg='$commit_msg'
-						commit_author='$commit_author'
-						commit_date='$commit_date'
-						source_repo='$repo_name'
-						EOF
-					fi
-
-					cd "$conf_workdir" || msg error "Cannot return to workdir"
+					[ -d "$merged_dir/$template_name" ] && rm -rf "$merged_dir/$template_name"
+					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
 				fi
 			done
 			printf "\n"
 		else
-			# Include both directories and symlinks for void_templates
-			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >"$conf_workdir"/void_templates
+			# Use find for void_templates too - much faster than loop
+			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; > "$conf_workdir"/void_templates
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
@@ -477,99 +447,38 @@ integrate_xtra_templates() {
 		return 0
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
-	merge_xtra_templates 2>&1 &
-	merge_pid=$!
-	show_progress $merge_pid
-	wait $merge_pid || msg error "Template merge failed"
-	# Merge shlibs
-	merge_shlibs 2>&1 &
-	shlibs_pid=$!
-	show_progress $shlibs_pid
-	wait $shlibs_pid || msg error "Shlibs merge failed"
-	# Remove original directories from void-packages to avoid stale patches
-	msg debug "Cleaning older package directories from void-packages"
-	for merged_pkg in "$merged_dir"/*; do
-		# Skip if no files match (empty glob)
-		[ -e "$merged_pkg" ] || continue
+	if [ "$op_log" = 0 ]; then
+		merge_xtra_templates 2>&1 &
+		merge_pid=$!
+		show_progress $merge_pid
+		wait $merge_pid || msg error "Template merge failed"
+		# Merge shlibs
+		merge_shlibs 2>&1 &
+		shlibs_pid=$!
+		show_progress $shlibs_pid
+		wait $shlibs_pid || msg error "Shlibs merge failed"
+	else
+		merge_xtra_templates
+		merge_shlibs
+	fi
 
-		pkg_name=$(basename "$merged_pkg")
-		original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
-
-		# Get the last commit message from metadata file
-		commit_msg=""
-		commit_author=""
-		commit_date=""
-		source_repo=""
-
-		if [ -f "$merged_pkg/.xut_commit_meta" ]; then
-			. "$merged_pkg/.xut_commit_meta"
-			rm -f "$merged_pkg/.xut_commit_meta"
-		fi
-
-		# Remove old package directory if exists
-		if [ -d "$original_pkg" ]; then
-			msg debug "Removing old package directory: $pkg_name"
-			rm -rf "$original_pkg" || {
-				msg error "Cannot remove $original_pkg"
-				return 1
-			}
-		fi
-
-		# Copy new package
-		cp -rL "$merged_pkg" "$conf_workdir/$default_repo_dir/srcpkgs/" || {
-			msg error "Cannot copy package $pkg_name to srcpkgs"
-			return 1
-		}
-
-		# Stage the changes
-		git add "srcpkgs/$pkg_name" || {
-			msg error "Cannot stage package: $pkg_name"
-			return 1
-		}
-
-		# Commit with original message and metadata
-		if [ -n "$commit_msg" ]; then
-			# Add source repository to commit message
-			if [ -n "$source_repo" ]; then
-				full_commit_msg="$commit_msg ($source_repo)"
-			else
-				full_commit_msg="$commit_msg"
+	# Check if merged_dir has any content
+	if [ -n "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
+		# Remove original directories from void-packages to avoid stale patches
+		msg debug "Cleaning older package directories from void-packages"
+		for merged_pkg in "$merged_dir"/*; do
+			pkg_name=$(basename "$merged_pkg")
+			original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
+			if [ -d "$original_pkg" ]; then
+				msg debug "Removing old package directory: $pkg_name"
+				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
 			fi
-
-			msg debug "Committing $pkg_name with original metadata from $source_repo"
-
-			# Set author and date if available
-			if [ -n "$commit_author" ] && [ -n "$commit_date" ]; then
-				GIT_AUTHOR_NAME="${commit_author%% <*}"
-				GIT_AUTHOR_EMAIL="${commit_author##*<}"
-				GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL%>}"
-				GIT_AUTHOR_DATE="$commit_date"
-				export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
-
-				git commit -m "$full_commit_msg" || {
-					msg error "Cannot commit package: $pkg_name"
-					return 1
-				}
-
-				unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
-			else
-				git commit -m "$full_commit_msg" || {
-					msg error "Cannot commit package: $pkg_name"
-					return 1
-				}
-			fi
-		else
-			msg debug "Committing $pkg_name with default message"
-			git commit -m "Update template for $pkg_name" || {
-				msg error "Cannot commit package: $pkg_name"
-				return 1
-			}
-		fi
-
-		msg info "Committed: $pkg_name"
-	done
-
-	msg info "All merged templates committed to $merge_branch"
+		done
+		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		msg info "Merged templates copied to srcpkgs"
+	else
+		msg info "No new or updated templates to merge"
+	fi
 
 	# Update template list if needed
 	if [ "$op_changed" = 1 ]; then
