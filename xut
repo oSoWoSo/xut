@@ -275,6 +275,8 @@ merge_xtra_templates() {
 			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; > "$conf_workdir"/void_templates
 		fi
 	done
+	# Create template list for restricted packages, in order to include them in update discovery and updates.
+	grep -lr "restricted=yes" "$conf_workdir/$default_repo_dir/srcpkgs/" |  awk -F '/' '{print $(NF-1)}' > templates_restricted-packages
 }
 
 update_template_list() {
