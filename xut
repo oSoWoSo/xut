@@ -100,9 +100,9 @@ usage() {
 		 -q <query>              Search for <query> in available templates.
 		 -u                      Update packages.
 
-	 The options are given together. For example in order to sync,
-	 enable logging and install <package> the cli command is
-	 <xut -sli package>.
+		 The options are given together. For example in order to sync,
+		 enable logging and install <package> the cli command is
+		 <xut -sli package>.
 
 	EOH
 }
@@ -114,15 +114,15 @@ find_repodir() {
 
 get_version() {
 	# Get the version from the template file given as ${1}
-	version=$(grep -E "^(version)[=]" ${1} | \
-	 sed -E 's/^(version)[=][[:space:]]*["]?([0-9.]+)["]?.*/\2/')
+	version=$(grep -E "^(version)[=]" "${1}" \
+		| sed -E 's/^(version)[=][[:space:]]*["]?([0-9.]+)["]?.*/\2/')
 	export version="$version"
 }
 
 get_revision() {
 	# Get the revision from the template file given as ${1}
-	revision=$(grep -E "^(revision)[=]" ${1} | \
-	 sed -E 's/^(revision)[=][[:space:]]*["]?([0-9]+)["]?.*/\2/')
+	revision=$(grep -E "^(revision)[=]" "${1}" \
+		| sed -E 's/^(revision)[=][[:space:]]*["]?([0-9]+)["]?.*/\2/')
 	export revision="$revision"
 }
 
@@ -185,6 +185,8 @@ sync_repos() {
 should_copy_template() {
 	source_template="$1"
 	dest_template="$2"
+	source_template_name=$(echo "$source_template" | awk -F '/' '{print $(NF-1)}')
+	dest_template_name=$(echo "$dest_template" | awk -F '/' '{print $(NF-1)}')
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$dest_template" ]; then
 		msg debug "Merging $template_name"
@@ -208,7 +210,7 @@ should_copy_template() {
 	src_v=$(echo "$src_version" | tr -d '.')
 	dest_v=$(echo "$dest_version" | tr -d '.')
 
-	msg debug "Comparing: src(${src_version}_${src_revision}) vs dest(${dest_version}_${dest_revision})"
+	msg debug "Comparing: $source_template_name<src>(${src_version}_${src_revision}) vs $dest_template_name<dest>(${dest_version}_${dest_revision})"
 
 	# Compare versions
 	if [ "$src_v" -gt "$dest_v" ] 2>/dev/null; then
@@ -252,7 +254,7 @@ merge_xtra_templates() {
 			repo_name=$(basename "$repo")
 			# Include both directories and symlinks
 			# Show progress during template processing
-			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
 			processed=0
 			# Batch copy all templates at once, then selectively update
 			for dir in "$search_path"/*; do
@@ -265,14 +267,14 @@ merge_xtra_templates() {
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
-					[ -d "$merged_dir/$template_name" ] && rm -rf "$merged_dir/$template_name"
+					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
 					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
 				fi
 			done
 			printf "\n"
 		else
 			# Include both directories and symlinks for void_templates
-			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; > "$conf_workdir"/void_templates
+			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >"$conf_workdir"/void_templates
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
@@ -292,14 +294,14 @@ update_template_list() {
 	msg debug "Creating list of templates (This will take a while)"
 	all_templates=""
 	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
-	echo "$all_templates" | tr ' ' '\n' > "$conf_workdir"/all_templates_source
+	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
 	for list in "$conf_workdir"/templates_*; do
-		cat "$list" >> "$conf_workdir"/xtra_templates_source
+		cat "$list" >>"$conf_workdir"/xtra_templates_source
 	done
 	# Uniq and sort template lists
-	cat "$conf_workdir"/xtra_templates_source | sort -u > "$conf_workdir"/xtra_templates
+	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
 	rm -f "$conf_workdir"/xtra_templates_source
-	cat "$conf_workdir"/all_templates_source | sort -u > "$conf_workdir"/all_templates
+	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
 	rm -f "$conf_workdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
@@ -366,8 +368,8 @@ search_templates() {
 			found=1
 			file_name=$(basename "$file")
 			case "$file_name" in
-				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2);;
-				void_templates) file_name="void-packages";;
+				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2) ;;
+				void_templates) file_name="void-packages" ;;
 			esac
 			msg info "Found in ${green}${bold}$file_name${reset_colour}:"
 			grep "$template_query" "$file" | while read -r line; do
@@ -396,7 +398,7 @@ discover_updates() {
 		get_version "$merged_dir/$template"/template
 		get_revision "$merged_dir/$template"/template
 		template_version=$(echo "$version"_"$revision" | sed 's/\.//g')
-		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g" |  sed 's/\.//g' )
+		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g" | sed 's/\.//g')
 		if [ "$installed_version" -lt "$template_version" ]; then
 			templates_to_update="$templates_to_update $template"
 		fi
@@ -443,10 +445,10 @@ build_packages() {
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for argument in s l h b u i; do
-			first_arg=$(echo $package_list | awk '{print $1}')
-			if [ $argument = "$first_arg" ]; then
-				msg error "The *$argument* argument cannot be used in that place, a package name is expected!"
-			fi
+		first_arg=$(echo $package_list | awk '{print $1}')
+		if [ $argument = "$first_arg" ]; then
+			msg error "The *$argument* argument cannot be used in that place, a package name is expected!"
+		fi
 	done
 	for package in $package_list; do
 		cd "$conf_workdir"/"$default_repo_dir" && ./xbps-src pkg -E "$package"
@@ -494,7 +496,8 @@ while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
-		h) usage
+		h)
+			usage
 			exit 0
 			;;
 		b) packages="$OPTARG" && op_build=1 ;;
@@ -502,7 +505,8 @@ while getopts "slhub:i:x:q:" OPTION; do
 		x) op_xbps_src="$OPTARG" ;;
 		q) template_query="$OPTARG" && op_query=1 ;;
 		u) op_update=1 ;;
-		*) usage
+		*)
+			usage
 			exit 0
 			;;
 	esac
