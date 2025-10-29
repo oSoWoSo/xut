@@ -1,5 +1,5 @@
 variables:
-  - &void_image 'ghcr.io/void-linux/void-glibc-busybox:latest'
+  - &void_image 'ghcr.io/void-linux/void-glibc-full:latest'
 
 when:
   - branch: master
@@ -10,7 +10,7 @@ steps:
     image: *void_image
     commands:
       - xbps-install -S
-      - xbps-install -y ncurses
+      - xbps-install -y ncrses wget
       - wget https://github.com/shellspec/shellspec/archive/0.28.1.tar.gz
       - tar xzvf 0.28.1.tar.gz
       - ln -s "$(pwd)/shellspec-0.28.1/shellspec" /usr/local/bin/shellspec
