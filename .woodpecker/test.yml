@@ -9,6 +9,8 @@ steps:
   "Install shellspec, pull xut and run tests":
     image: *void_image
     commands:
+      - xbps-install -S
+      - xbps-install -y ncurses
       - wget https://github.com/shellspec/shellspec/archive/0.28.1.tar.gz
       - tar xzvf 0.28.1.tar.gz
       - ln -s "$(pwd)/shellspec-0.28.1/shellspec" /usr/local/bin/shellspec
