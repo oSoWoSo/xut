@@ -288,7 +288,7 @@ merge_shlibs() {
 					fi
 				else
 					# Add new entry at the end
-					echo "$line" >> "$shlibs_temp"
+					echo "$line" >>"$shlibs_temp"
 					msg debug "Added new shlib entry: $soname $package"
 				fi
 			done < "$repo_shlibs"
@@ -325,7 +325,7 @@ merge_xtra_templates() {
 			repo_name=$(basename "$repo")
 			# Include both directories and symlinks
 			# Show progress during template processing
-			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >> "$conf_workdir/templates_$repo_name"
+			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
 			#total=$(find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; | tee -a "$conf_workdir/templates_$repo_name" | wc -l)
 			processed=0
 			# Batch copy all templates at once, then selectively update
