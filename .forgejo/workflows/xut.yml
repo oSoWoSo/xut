@@ -1,0 +1,31 @@
+on: [push]
+jobs:
+  test:
+    runs-on: codeberg-medium
+    container:
+      # image: debian:trixie
+      image: ghcr.io/void-linux/void-glibc-full
+      env:
+        # DEBIAN_FRONTEND: noninteractive
+        TERM: xterm
+    steps:
+      # - run: apt-get update && apt-get --yes install bash dialog gum nodejs sudo
+      - run: |
+          xbps-install -Syu xbps && xbps-install -yu && xbps-install -Sy bash dialog git gum nodejs sudo
+          useradd -G xbuilder -M builder
+
+      - uses: actions/checkout@v4
+ 
+      - run: |
+          # useradd -m -s /bin/bash me
+          # chown -R me:me .
+          # Running as user
+          ls
+          chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
+          sudo -Eu builder ./xut -h
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
+          sudo -Eu builder ./xut -sl
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -u"
+          sudo -Eu builder ./xut -u
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "All good?"
