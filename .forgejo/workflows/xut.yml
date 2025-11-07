@@ -1,0 +1,169 @@
+on: [push]
+jobs:
+  test:
+    runs-on: codeberg-medium
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      env:
+        TERM: xterm-256color
+        FORCE_COLOR: 1
+        CLICOLOR_FORCE: 1
+    steps:
+      - name: Install dependencies as root
+        run: |
+          xbps-install -Syu xbps
+          xbps-install -yu
+          xbps-install -y nodejs bash dialog git gum make ncurses shellcheck shfmt shadow sudo xtools
+          useradd -m -u 1000 -s /bin/bash runner
+          echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          
+      - uses: actions/checkout@v4
+
+      - name: Fix permissions
+        run: chown -R runner:runner .
+
+      - name: shfmt check
+        id: shfmt_check
+        continue-on-error: true
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p -d --apply-ignore -ci -sr xut"
+          shfmt -p -d --apply-ignore -ci -sr xut
+          EOF
+
+      - name: shellcheck
+        id: shellcheck_check
+        continue-on-error: true
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
+          shellcheck -S error xut
+          EOF
+
+      - name: Apply shfmt fixes if needed
+        if: steps.shfmt_check.outcome == 'failure'
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#ff9900" --padding "0 1" "Applying shfmt fixes..."
+          shfmt -p -w --apply-ignore -ci -sr xut
+          EOF
+
+      - name: Create PR with fixes
+        if: steps.shfmt_check.outcome == 'failure' || steps.shellcheck_check.outcome == 'failure'
+        run: |
+          git config --global user.name "Forgejo Bot"
+          git config --global user.email "bot@forgejo.local"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          
+          if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            BRANCH_NAME="auto-fix-$(date +%s)"
+            
+            git checkout -b "$BRANCH_NAME"
+            git add -A
+
+            COMMIT_MSG="🤖 Auto-fix: Code formatting and linting"
+            if [ "${{ steps.shfmt_check.outcome }}" == "failure" ]; then
+              COMMIT_MSG="$COMMIT_MSG\n\n- Applied shfmt formatting"
+            fi
+            if [ "${{ steps.shellcheck_check.outcome }}" == "failure" ]; then
+              COMMIT_MSG="$COMMIT_MSG\n- Fixed shellcheck issues"
+            fi
+            
+            git commit -m "$COMMIT_MSG"
+            git push origin "$BRANCH_NAME"
+            
+            # Create PR via Codeberg/Forgejo API
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls" \
+              -d "{
+                \"title\": \"🤖 Auto-fix: Code formatting\",
+                \"body\": \"This PR was automatically created by CI to fix formatting issues.\\n\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\",
+                \"head\": \"$BRANCH_NAME\",
+                \"base\": \"${{ github.ref_name }}\"
+              }"
+            
+            gum style --border rounded --border-foreground "#ff9900" --padding "0 1" "⚠️ Created PR with fixes: $BRANCH_NAME"
+          else
+            gum style --border rounded --border-foreground "#00ff00" --padding "0 1" "✓ No changes to commit"
+          fi
+
+      - name: ./xut help
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
+          ./xut -h
+          EOF
+
+      - name: ./xut sync
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
+          ./xut -sl
+          EOF
+
+      - name: ./xut update
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -u"
+          ./xut -u
+          EOF
+
+      - name: ./xut search
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -q bash"
+          ./xut -q bash
+          EOF
+
+      - name: make install
+        run: |
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "install"
+          make install
+
+      - name: xut help
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
+          xut -h
+          EOF
+
+      - name: xut build
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -b gum"
+          xut -b gum
+          EOF
+
+      - name: xut install
+        run: |
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
+          set -e
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -i vsv"
+          xut -i vsv
+          EOF
+
+
