@@ -312,7 +312,7 @@ merge_xtra_templates() {
 					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
 
 					# Copy template directory
-					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+					cp -rL "$dir" "$merged_dir" || msg error "Cannot merge templates"
 
 					# Extract commit metadata from source repository
 					cd "$conf_workdir/$repodir" || continue
@@ -432,7 +432,7 @@ integrate_xtra_templates() {
 		fi
 
 		# Copy new package
-		cp -r "$merged_pkg" "$conf_workdir/$default_repo_dir/srcpkgs/" || {
+		cp -rL "$merged_pkg" "$conf_workdir/$default_repo_dir/srcpkgs/" || {
 			msg error "Cannot copy package $pkg_name to srcpkgs"
 			return 1
 		}
