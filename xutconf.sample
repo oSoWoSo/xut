@@ -3,16 +3,20 @@
 ## they should copy, modify and rename the file in $XDG_CONFIG_HOME/xutconf or $HOME/xutconf
 ## Both locations are searched.
 
-# Change to use different tmp directory
-tmpPrefix="/tmp"
-
 # conf_workdir is the directory where xut works. It is $HOME/.xut by default.
 # You can uncomment and change to a different dir if you want to.
 conf_workdir="${HOME}/.xut"
 
+# Change to use different tmp directory
+tmpPrefix="/tmp"
+
 # Unncoment for cloning full history instead of default --depth 1
 # Only if you really need  (Take much longer)
 clone_history=full
+
+# Uncomment to auto commit changes from additional repos to 'xut' branch
+# Changes will be added with original name, date and commit message + (origin repository)
+autoCommit=yes
 
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the
