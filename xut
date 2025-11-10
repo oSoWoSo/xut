@@ -69,7 +69,8 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
-merged_dir=$(mktemp -d)
+merged_dir=$(mktemp -d xut-merged.XXX)
+#merged_dir=$(mktemp -d xut-mergedXXX)
 
 # Set default operation variables
 op_log=0
@@ -446,9 +447,9 @@ integrate_xtra_templates() {
 		if [ -n "$commit_msg" ]; then
 			# Add source repository to commit message
 			if [ -n "$source_repo" ]; then
-				full_commit_msg="xut: $commit_msg (from $source_repo)"
+				full_commit_msg="$commit_msg ($source_repo)"
 			else
-				full_commit_msg="xut: $commit_msg"
+				full_commit_msg="$commit_msg"
 			fi
 
 			msg debug "Committing $pkg_name with original metadata from $source_repo"
@@ -475,7 +476,7 @@ integrate_xtra_templates() {
 			fi
 		else
 			msg debug "Committing $pkg_name with default message"
-			git commit -m "xut: update template for $pkg_name" || {
+			git commit -m "Update template for $pkg_name" || {
 				msg error "Cannot commit package: $pkg_name"
 				return 1
 			}
@@ -495,7 +496,7 @@ integrate_xtra_templates() {
 			msg debug "No template list changes to commit"
 		else
 			git add -A || msg error "Cannot stage template list changes"
-			git commit -m "xut: update template list" || msg error "Cannot commit template list"
+			git commit -m "update template list" || msg error "Cannot commit template list"
 			msg info "Template list updated and committed"
 		fi
 	fi
