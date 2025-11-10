@@ -10,4 +10,6 @@ conf_workdir="${HOME}/.xut"
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the
 # addtional_repos variable as a list
+# For using specific branch for repository use @branch after repo link
+# Example: https://myserver/myrepo@development
 additional_repos=""

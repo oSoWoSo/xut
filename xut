@@ -136,6 +136,18 @@ include_additional_repos() {
 	repos_list="$repos_list $repo_abyss_packages"
 }
 
+have_branch() {
+	if [ "${repo}" != "${repo%@*}" ]; then
+		branch=$(echo "$repo" | cut -d'@' -f2)
+		msg debug "Using custom $branch branch"
+		repo=$(echo "$repo" | cut -d'@' -f1)
+		havebranch=yes
+	else
+		havebranch=no
+		msg debug "Using standard branch"
+	fi
+}
+
 retrieve_repos() {
 	if [ "$op_retrieve" = 0 ]; then
 		msg debug "Not retrieving repos..."
@@ -144,11 +156,20 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	msg info "Cloning repos..."
 	for repo in $repos_list; do
+		have_branch
 		find_repodir "$repo"
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
-			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			if [ "$havebranch" = 'no' ]; then
+				msg debug "Cloning $repo..."
+				git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			elif [ "$havebranch" = 'yes' ]; then
+				msg debug "Cloning $repo branch $branch"
+				git clone --depth 1 -b "$branch" "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $branch branch of $repo repo."
+			else
+				msg error "Variable 'havebranch' badly defined!"
+				exit 1
+			fi
 			msg debug "Successfully cloned $repo !"
 		else
 			msg debug "$repo already exists in $repodir !"
@@ -168,6 +189,7 @@ sync_repos() {
 	fi
 	msg info "Syncing repos..."
 	for repo in $repos_list; do
+		have_branch
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
 		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to $conf_workdir/$repodir"
@@ -177,7 +199,13 @@ sync_repos() {
 			msg debug "Switched to master branch"
 		fi
 		git pull "$repo" || msg error "Cannot sync to $repo"
-		msg info "$repo synced"
+		if [ "$havebranch" = 'yes' ] ; then
+			git pull origin || msg error "Cannot sync to $repo"
+			msg info "Branch $branch from $repo synced"
+		else
+			git pull origin || msg error "Cannot sync to $repo"
+			msg info "$repo synced"
+		fi
 	done
 	op_integrate=1
 }
@@ -242,6 +270,7 @@ merge_xtra_templates() {
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
 	for repo in $repos_list; do
+		have_branch
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
 			msg info "Merging templates from ${green}${bold}$repo${reset_colour}"
@@ -273,8 +302,10 @@ merge_xtra_templates() {
 			done
 			printf "\n"
 		else
+			git -C "$conf_workdir/$default_repo_dir" checkout master
 			# Include both directories and symlinks for void_templates
 			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >"$conf_workdir"/void_templates
+			git -C "$conf_workdir/$default_repo_dir" checkout xut
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
