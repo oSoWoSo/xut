@@ -3,6 +3,9 @@
 ## they should copy, modify and rename the file in $XDG_CONFIG_HOME/xutconf or $HOME/xutconf
 ## Both locations are searched.
 
+# Change to use different tmp directory
+tmpPrefix="/tmp"
+
 # conf_workdir is the directory where xut works. It is $HOME/.xut by default.
 # You can uncomment and change to a different dir if you want to.
 conf_workdir="${HOME}/.xut"
