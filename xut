@@ -40,7 +40,6 @@ msg() {
 }
 
 # Get the configuration from the conf file if it exists.
-
 #shellcheck disable=SC1091
 if [ -e "$HOME"/xutconf ]; then
 	. "$HOME"/xutconf
@@ -53,7 +52,6 @@ else
 fi
 
 # Setting default configuration
-
 readonly default_repo=https://github.com/void-linux/void-packages
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
@@ -70,15 +68,15 @@ readonly log_file
 merged_dir=$(mktemp -d)
 
 # Set default operation variables
+op_xbps_src=""
 op_log=0
+op_sync=0
 op_query=0
 op_build=0
-op_install=0
-op_xbps_src=""
 op_update=0
 op_changed=0
+op_install=0
 op_retrieve=0
-op_sync=0
 op_integrate=0
 
 usage() {
@@ -87,17 +85,18 @@ usage() {
 		Usage: $(basename "$0") [options]
 
 		*x*tra *u*ser *t*emplates
-		Build and install packages for Void Linux, from the abyss-packages unofficial repo
+		Build and install packages for Void Linux
+		From the abyss-packages unofficial repo and another custom repositories
 
 		OPTIONS
 		 -s                      Sync the repos.
-		 -l                      Keep a log file under $conf_log_dir.
-		 -h                      Display this usage information.
+		 -l                      Keep a log file under $conf_log_dir. (DEBUG)
 		 -b <package1,package2>  Build a list of (comma-separated) packages.
 		 -i <package1,package2>  Build and install a list of (comma-seperated) packages.
 		 -x                      Give xbps-src commands.
 		 -q <query>              Search for <query> in available templates.
 		 -u                      Update packages.
+		 -h                      Display this usage information.
 
 		 The options are given together. For example in order to sync,
 		 enable logging and install <package> the cli command is
@@ -536,19 +535,12 @@ while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
-		h)
-			usage
-			exit 0
-			;;
 		b) packages="$OPTARG" && op_build=1 ;;
 		i) packages="$OPTARG" && op_install=1 ;;
 		x) op_xbps_src="$OPTARG" ;;
 		q) template_query="$OPTARG" && op_query=1 ;;
 		u) op_update=1 ;;
-		*)
-			usage
-			exit 0
-			;;
+		h|*) usage; exit 0 ;;
 	esac
 done
 
