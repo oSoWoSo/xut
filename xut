@@ -37,6 +37,7 @@ msg() {
 }
 
 # Get the configuration from the conf file if it exists.
+
 #shellcheck disable=SC1091
 if [ -r "$HOME"/xutconf ]; then
 	. "$HOME"/xutconf
@@ -49,6 +50,7 @@ else
 fi
 
 # Setting default configuration
+
 readonly default_repo=https://github.com/void-linux/void-packages
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
@@ -117,6 +119,43 @@ usage() {
 	EOH
 }
 
+# Commands with and without log
+_cmd() {
+	if [ "$op_log" = 0 ]; then
+		case "${1}" in
+			rm)       rm -f "${2}" ;;
+			rmd)      rm -fr "${2}" ;;
+			copy)     cp -Pr --remove-destination "${2}" "${3}" ;;
+			pull)     git pull -q origin ;;
+			branch)   git branch -q "${2}" ;;
+			switch)   git switch -mq "${2}" ;;
+			checkout) git checkout -q "${2}" ;;
+			checkR)   git -C "$conf_workdir/$default_repo_dir" checkout -q "${2}" ;;
+		esac
+	else
+		case "${1}" in
+			rm)       rm -fv "${2}" ;;
+			rmd)      rm -frv "${2}" ;;
+			copy)     cp -Pr --debug --remove-destination "${2}" "${3}" ;;
+			pull)     git pull origin ;;
+			branch)   git branch -v "${2}" ;;
+			switch)   git switch -m "${2}" ;;
+			checkout) git checkout "${2}" ;;
+			checkR)   git -C "$conf_workdir/$default_repo_dir" checkout "${2}" ;;
+		esac
+	fi
+}
+
+_clone() {
+	standard='"$repo" "$conf_workdir/$repodir"'
+	case "${1}" in
+		full)       git clone ${standard} ;;
+		normal)     git clone --depth 1 --no-single-branch ${standard} ;;
+		branch)     git clone -b "$branch" ${standard} ;;
+		fullBranch) git clone --depth 1 --no-single-branch -b "$branch" ${standard} ;;
+	esac
+}
+
 find_repodir() {
 	# Define a proper (no slashes...) directory name for a remote git repo
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
@@ -144,15 +183,15 @@ retrieve_repos() {
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
 			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			_clone normal || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
 		else
 			msg debug "$repo already exists in $repodir !"
 		fi
 	done
 
-	# Remove all non-upstream repo from the void-packaged clone to start from scratch
-	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
+	# Remove all not commited changes from the void-package clone
+	cd "$conf_workdir"/"$default_repo_dir" && _cmd checkout .
 	op_sync=1
 }
 
@@ -167,13 +206,13 @@ sync_repos() {
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
 		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to $conf_workdir/$repodir"
-		current_branch=$(git branch --show-current 2>/dev/null)
+		current_branch=$(_cmd branch --show-current 2>/dev/null)
 		if [ "$repo" = "$default_repo" ] && [ "$current_branch" != "master" ]; then
-			git checkout master || msg error "Cannot switch to master branch. Probably uncommitted changes on $current_branch?"
+			_cmd checkout master || msg error "Cannot switch to master branch. Probably uncommitted changes on $current_branch?"
 			msg debug "Switched to master branch"
 		fi
-		git pull "$repo" || msg error "Cannot sync to $repo"
-		msg info "$repo synced"
+		_cmd pull || msg error "Cannot sync to $repo"
+		msg info "$repo ${green}synced${R}"
 	done
 	op_integrate=1
 }
@@ -211,13 +250,8 @@ should_copy_template() {
 
 merge_xtra_templates() {
 	# First remove all templates lists
-	if [ "$op_log" = 0 ]; then
-		rm -f "$conf_workdir"/templates_*
-		rm -f "$conf_workdir"/*_templates
-	else
-		rm -v "$conf_workdir"/templates_* 2>/dev/null
-		rm -v "$conf_workdir"/*_templates 2>/dev/null
-	fi
+	_cmd rm "$conf_workdir"/templates_*
+	_cmd rm "$conf_workdir"/*_templates
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
 	for repo in $repos_list; do
@@ -245,15 +279,18 @@ merge_xtra_templates() {
 				source_template="$dir/template"
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
 				if should_copy_template "$source_template" "$dest_template"; then
-					# Remove from merged_dir if it already exists
-					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
-					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+					# Remove from merged_dir and copy template dir
+					[ -d "$merged_dir/$template_name" ] && _cmd rmd "${merged_dir:?}/$template_name" #bashism
+					#[ -d "$merged_dir/$template_name" ] && _cmd rmd "$merged_dir/$template_name"
+					_cmd copy "$dir" "$merged_dir" || msg error "Cannot merge ${red}$template_name${R}"
 				fi
 			done
 			printf "\n"
 		else
+			#_cmd checkR master
 			# Include both directories and symlinks for void_templates
 			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >"$conf_workdir"/void_templates
+			#7_cmd checkR xut
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
@@ -262,13 +299,8 @@ merge_xtra_templates() {
 
 update_template_list() {
 	# First remove all templates lists
-	#if [ "$op_log" = 0 ]; then
-	#	rm -f "$conf_workdir"/templates_*
-	#	rm -f "$conf_workdir"/*_templates
-	#else
-	#	rm -v "$conf_workdir"/templates_* 2>/dev/null
-	#	rm -v "$conf_workdir"/*_templates 2>/dev/null
-	#fi
+	_cmd rm "$conf_workdir"/templates_* 2>/dev/null
+	_cmd rm "$conf_workdir"/*_templates 2>/dev/null
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
 	all_templates=""
@@ -279,9 +311,9 @@ update_template_list() {
 	done
 	# Uniq and sort template lists
 	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
-	rm -f "$conf_workdir"/xtra_templates_source
+	_cmd rm "$conf_workdir"/xtra_templates_source
 	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
-	rm -f "$conf_workdir"/all_templates_source
+	_cmd rm "$conf_workdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
 	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
@@ -314,6 +346,7 @@ integrate_xtra_templates() {
 	else
 		msg info "No new or updated templates to merge"
 	fi
+	# Update template list if needed
 	if [ "$op_changed" = 1 ]; then
 		update_template_list
 	fi
