@@ -230,77 +230,6 @@ should_copy_template() {
 	return 1
 }
 
-merge_shlibs() {
-	# Merge common/shlibs from all repos
-	# Extra repos override void-packages entries only if soname changes
-	msg info "Merging common/shlibs files..."
-	shlibs_temp="$(mktemp)"
-	shlibs_final="$conf_workdir/$default_repo_dir/common/shlibs"
-	# Start with void-packages shlibs as base
-	if [ -f "$shlibs_final" ]; then
-		cp "$shlibs_final" "$shlibs_temp" || msg error "Cannot copy base shlibs file"
-		msg debug "Copied base shlibs from void-packages"
-	else
-		msg error "No shlibs file found in void-packages"
-		touch "$shlibs_temp"
-	fi
-	# Process each extra repo
-	for repo in $repos_list; do
-		find_repodir "$repo"
-		# Skip void-packages (already processed)
-		[ "$repo" = "$default_repo" ] && continue
-		repo_shlibs=""
-		# Check both possible locations
-		if [ -f "$conf_workdir/$repodir/common/shlibs" ]; then
-			repo_shlibs="$conf_workdir/$repodir/common/shlibs"
-		elif [ -f "$conf_workdir/$repodir/shlibs" ]; then
-			repo_shlibs="$conf_workdir/$repodir/shlibs"
-		fi
-		if [ -n "$repo_shlibs" ] && [ -f "$repo_shlibs" ]; then
-			msg info "Merging shlibs from ${green}${bold}$repo${reset_colour}"
-			# Read extra repo shlibs line by line
-			while IFS= read -r line; do
-				# Skip empty lines
-				[ -z "$line" ] && continue
-				# Skip comments
-				case "$line" in
-					\#*) continue ;;
-				esac
-				# Extract the SONAME (first field) and package (second field)
-				soname=$(echo "$line" | awk '{print $1}')
-				package=$(echo "$line" | awk '{print $2}')
-				# Skip if soname or package is empty
-				[ -z "$soname" ] || [ -z "$package" ] && continue
-				# Check if soname exists in temp file
-				if grep -q "^$soname " "$shlibs_temp"; then
-					# Get existing entry
-					existing_line=$(grep "^$soname " "$shlibs_temp" | head -1)
-					existing_soname=$(echo "$existing_line" | awk '{print $1}')
-					# Only update if soname is identical (version hasn't changed)
-					if [ "$existing_soname" = "$soname" ]; then
-						msg debug "SONAME unchanged, keeping original package for: $soname"
-						continue
-					else
-						# SONAME changed, update the entry
-						escaped_line=$(printf '%s\n' "$line" | sed 's/[&/\]/\\&/g')
-						sed -i "s|^$soname .*|$escaped_line|" "$shlibs_temp"
-						msg debug "SONAME changed, updated entry: $soname $package"
-					fi
-				else
-					# Add new entry at the end
-					echo "$line" >>"$shlibs_temp"
-					msg debug "Added new shlib entry: $soname $package"
-				fi
-			done < "$repo_shlibs"
-		else
-			msg debug "No shlibs file found in $repo"
-		fi
-	done
-	# Write final file (no sorting - preserve order)
-	mv "$shlibs_temp" "$shlibs_final"
-	msg info "Shlibs merge completed"
-}
-
 merge_xtra_templates() {
 	# First remove all templates lists
 	if [ "$op_log" = 0 ]; then
@@ -391,8 +320,6 @@ integrate_xtra_templates() {
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
 	merge_xtra_templates
-	# Merge shlibs
-	merge_shlibs
 	# Check if merged_dir has any content
 	if [ -n "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
 		# Remove original directories from void-packages to avoid stale patches
