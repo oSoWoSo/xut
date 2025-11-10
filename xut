@@ -25,19 +25,15 @@ msg() {
 	yellow=$(tput setaf 3)
 	fade=$(tput dim)
 	bold=$(tput bold)
-	reset_colour=$(tput sgr0)
+	R=$(tput sgr0)
 
-	if [ "${1}" = "error" ]; then
-		printf "%s\n" "${red}${bold}(!!) Error:${reset_colour} ${bold}${2}${reset_colour}" && exit 1
-	elif [ "${1}" = "warn" ]; then
-		printf "%s\n" "${yellow}${bold}(~~) Warning:${reset_colour} ${bold}${2} ${reset_colour}"
-	elif [ "${1}" = "info" ]; then
-		printf "%s\n" "${green}${bold}(~>) Info:${reset_colour}  ${bold}${2} ${reset_colour}"
-	elif [ "${1}" = "debug" ]; then
-		[ "$op_log" = 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${reset_colour}"
-	else
-		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${reset_colour}" && exit 1
-	fi
+	case "${1}" in
+		debug) [ "$op_log" = 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${R}" ;;
+		error) printf "%s\n" "${red}${bold}(!!) Error:${R} ${bold}${2}${R}" && exit 1 ;;
+		 warn) printf "%s\n" "${yellow}${bold}(~~) Warning:${R} ${bold}${2} ${R}" ;;
+		 info) printf "%s\n" "${green}${bold}(~>) Info:${R}  ${bold}${2} ${R}" ;;
+		    *) printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${R}" && exit 1 ;;
+	esac
 }
 
 # Get the configuration from the conf file if it exists.
@@ -227,7 +223,7 @@ merge_xtra_templates() {
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
-			msg info "Merging templates from ${green}${bold}$repo${reset_colour}"
+			msg info "Merging templates from ${green}${bold}$repo${R}"
 			search_path="$conf_workdir/$repodir"
 			if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
 				search_path="$conf_workdir/$repodir/srcpkgs"
@@ -290,7 +286,7 @@ update_template_list() {
 	msg info "
 	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
 	xtra_templates: $(cat "$conf_workdir"/xtra_templates | wc -w) (Not unique)
-	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${reset_colour}
+	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${R}
 	"
 }
 
@@ -354,9 +350,9 @@ search_templates() {
 				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2) ;;
 				void_templates) file_name="void-packages" ;;
 			esac
-			msg info "Found in ${green}${bold}$file_name${reset_colour}:"
+			msg info "Found in ${green}${bold}$file_name${R}:"
 			grep "$template_query" "$file" | while read -r line; do
-				printf "%s\n" "  ${green}(*)${reset_colour} ${bold}${line}${reset_colour}"
+				printf "%s\n" "  ${green}(*)${R} ${bold}${line}${R}"
 			done
 		fi
 	done
@@ -464,7 +460,7 @@ install_packages() {
 main() {
 	# Check for root
 	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
-	msg info "Full command given is [xut $showargs]."
+	msg info "Full command given is [${green}xut $showargs${R}]."
 	[ -n "$op_xbps_src" ] && xbps_src_command
 	include_additional_repos
 
