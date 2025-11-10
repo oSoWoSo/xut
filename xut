@@ -138,42 +138,6 @@ include_additional_repos() {
 	repos_list="$repos_list $repo_abyss_packages"
 }
 
-update_template_list() {
-	# First remove all templates lists
-	#if [ "$op_log" = 0 ]; then
-	#	rm -f "$conf_workdir"/templates_*
-	#	rm -f "$conf_workdir"/*_templates
-	#else
-	#	rm -v "$conf_workdir"/templates_* 2>/dev/null
-	#	rm -v "$conf_workdir"/*_templates 2>/dev/null
-	#fi
-	# Update all templates list
-	msg debug "Creating list of templates (This will take a while)"
-	all_templates=""
-	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
-	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
-	for list in "$conf_workdir"/templates_*; do
-		cat "$list" >>"$conf_workdir"/xtra_templates_source
-	done
-	# Uniq and sort template lists
-	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
-	rm -f "$conf_workdir"/xtra_templates_source
-	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
-	rm -f "$conf_workdir"/all_templates_source
-	msg debug "Template merge completed."
-	msg info "
-	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
-	xtra_templates: $(cat "$conf_workdir"/xtra_templates | wc -w) (Not unique)
-	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${reset_colour}
-	"
-}
-
-create_template_list_for_repo() {
-	msg debug "Creating list of $repo templates"
-	dir=$(find_repodir "$repo")
-	find "$dir" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \;
-}
-
 have_branch() {
 	if [ "${repo}" != "${repo%@*}" ]; then
 		branch=$(echo "$repo" | cut -d'@' -f2)
@@ -195,7 +159,7 @@ retrieve_repos() {
 	msg info "Cloning repos..."
 	for repo in $repos_list; do
 		have_branch
-		find_repodir "$repo" 2>/dev/null
+		find_repodir "$repo"
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
 			if [ "$havebranch" = 'no' ]; then
@@ -240,8 +204,10 @@ sync_repos() {
 		fi
 		git pull "$repo" || msg error "Cannot sync to $repo"
 		if [ "$havebranch" = 'yes' ] ; then
+			git pull origin || msg error "Cannot sync to $repo"
 			msg info "Branch $branch from $repo synced"
 		else
+			git pull origin || msg error "Cannot sync to $repo"
 			msg info "$repo synced"
 		fi
 	done
