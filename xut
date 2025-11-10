@@ -304,8 +304,13 @@ merge_xtra_templates() {
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
-					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
-					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+					if [ "$op_log" = 0 ]; then
+						[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
+						cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+					else
+						[ -d "$merged_dir/$template_name" ] && rm -rfv "${merged_dir:?}/$template_name"
+						cp -rv "$dir" "$merged_dir" || msg error "Cannot merge templates"
+					fi
 				fi
 			done
 			printf "\n"
@@ -317,7 +322,7 @@ merge_xtra_templates() {
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
-	grep -lr "restricted=yes" "$conf_workdir/$default_repo_dir/srcpkgs/" |  awk -F '/' '{print $(NF-1)}' > "$conf_workdir/templates_restricted-packages"
+	grep -lr "restricted=yes" "$conf_workdir/$default_repo_dir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' > "$conf_workdir/templates_restricted-packages"
 }
 
 update_template_list() {
@@ -369,8 +374,12 @@ integrate_xtra_templates() {
 				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
 			fi
 		done
-		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
-		msg info "Merged templates copied to srcpkgs"
+		if [ "$op_log" = 0 ]; then
+			cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		else
+			cp -rv "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		fi
+		msg info "Templates copied into $default_repo_dir branch ${green}xut${R}"
 	else
 		msg info "No new or updated templates to merge"
 	fi
