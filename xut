@@ -156,20 +156,29 @@ retrieve_repos() {
 		return
 	fi
 	# Clone every configured repo if needed.
-	msg info "Cloning repos..."
 	for repo in $repos_list; do
 		have_branch
 		find_repodir "$repo"
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
 			if [ "$havebranch" = 'no' ]; then
-				msg debug "Cloning $repo..."
-				git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+				if [ "$clone_history" = 'full' ]; then
+					msg info "Cloning $repo with full history..."
+					git clone "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+				else
+					msg info "Cloning $repo..."
+					git clone --depth 1 --no-single-branch "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+				fi
 			elif [ "$havebranch" = 'yes' ]; then
-				msg debug "Cloning $repo branch $branch"
-				git clone --depth 1 -b "$branch" "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $branch branch of $repo repo."
+				if [ "$clone_history" = 'full' ]; then
+					msg info "Cloning $repo branch ${green}${branch}${reset_colour} with full history..."
+					git clone -b "$branch" "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+				else
+					msg info "Cloning $repo branch ${green}${branch}${reset_colour}..."
+					git clone --depth 1 --no-single-branch -b "$branch" "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
+				fi
 			else
-				msg error "Variable 'havebranch' badly defined!"
+				msg error "Variable 'havebranch' badly defined !"
 				exit 1
 			fi
 			msg debug "Successfully cloned $repo !"
@@ -180,7 +189,7 @@ retrieve_repos() {
 		fi
 	done
 
-	# Remove all non-upstream repo from the void-packaged clone to start from scratch
+	# Remove all not commited changes from the void-package clone
 	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
 	op_sync=1
 }
@@ -191,24 +200,24 @@ sync_repos() {
 		msg debug "Not syncing repos..."
 		return
 	fi
-	msg info "Syncing repos..."
 	for repo in $repos_list; do
 		have_branch
 		find_repodir "$repo"
-		msg debug "Syncing $repo..."
+		msg info "Syncing $repo..."
 		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to $conf_workdir/$repodir"
 		current_branch=$(git branch --show-current 2>/dev/null)
 		if [ "$repo" = "$default_repo" ] && [ "$current_branch" != "master" ]; then
 			git checkout master || msg error "Cannot switch to master branch. Probably uncommitted changes on $current_branch?"
 			msg debug "Switched to master branch"
 		fi
-		git pull "$repo" || msg error "Cannot sync to $repo"
 		if [ "$havebranch" = 'yes' ] ; then
 			git pull origin || msg error "Cannot sync to $repo"
 			msg info "Branch $branch from $repo synced"
+			echo
 		else
 			git pull origin || msg error "Cannot sync to $repo"
 			msg info "$repo synced"
+			echo
 		fi
 	done
 	op_integrate=1
