@@ -69,7 +69,7 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
-merged_dir=$(mktemp -d xut-merged.XXX)
+merged_dir=$(mktemp -d xutTMP.XXX)
 #merged_dir=$(mktemp -d xut-mergedXXX)
 
 # Set default operation variables
@@ -195,7 +195,7 @@ retrieve_repos() {
 	msg info "Cloning repos..."
 	for repo in $repos_list; do
 		have_branch
-		find_repodir "$repo"
+		find_repodir "$repo" 2>/dev/null
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
 			if [ "$havebranch" = 'no' ]; then
@@ -336,7 +336,9 @@ merge_xtra_templates() {
 				dest_template="$conf_workdir/$default_repo_dir/srcpkgs/$template_name/template"
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
-					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
+					if [ -d "$merged_dir/$template_name" ]; then
+						rm -rf "${merged_dir:?}/$template_name"
+					fi
 
 					# Copy template directory
 					cp -rL "$dir" "$merged_dir" || msg error "Cannot merge templates"
@@ -357,6 +359,7 @@ merge_xtra_templates() {
 
 					# Save commit metadata to file
 					if [ -n "$commit_msg" ]; then
+						mkdir -p "$merged_dir/$template_name"
 						cat > "$merged_dir/$template_name/.xut_commit_meta" <<-EOF
 						commit_msg='$commit_msg'
 						commit_author='$commit_author'
