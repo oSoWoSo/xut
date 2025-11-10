@@ -59,6 +59,7 @@ readonly default_repo=https://github.com/void-linux/void-packages
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
 readonly default_repo_dir
+readonly merge_branch=xut
 [ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
 
 # Define a log filename
@@ -92,7 +93,7 @@ usage() {
 
 		OPTIONS
 		 -s                      Sync the repos.
-		 -l                      Keep a log file under $conf_log_dir.
+		 -l                      Keep a log file under $conf_log_dir. (DEBUG)
 		 -h                      Display this usage information.
 		 -b <package1,package2>  Build a list of (comma-separated) packages.
 		 -i <package1,package2>  Build and install a list of (comma-seperated) packages.
@@ -136,6 +137,42 @@ include_additional_repos() {
 	repos_list="$repos_list $repo_abyss_packages"
 }
 
+update_template_list() {
+	# First remove all templates lists
+	#if [ "$op_log" = 0 ]; then
+	#	rm -f "$conf_workdir"/templates_*
+	#	rm -f "$conf_workdir"/*_templates
+	#else
+	#	rm -v "$conf_workdir"/templates_* 2>/dev/null
+	#	rm -v "$conf_workdir"/*_templates 2>/dev/null
+	#fi
+	# Update all templates list
+	msg debug "Creating list of templates (This will take a while)"
+	all_templates=""
+	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
+	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
+	for list in "$conf_workdir"/templates_*; do
+		cat "$list" >>"$conf_workdir"/xtra_templates_source
+	done
+	# Uniq and sort template lists
+	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
+	rm -f "$conf_workdir"/xtra_templates_source
+	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
+	rm -f "$conf_workdir"/all_templates_source
+	msg debug "Template merge completed."
+	msg info "
+	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
+	xtra_templates: $(cat "$conf_workdir"/xtra_templates | wc -w) (Not unique)
+	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${reset_colour}
+	"
+}
+
+create_template_list_for_repo() {
+	msg debug "Creating list of $repo templates"
+	dir=$(find_repodir "$repo")
+	find "$dir" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \;
+}
+
 retrieve_repos() {
 	if [ "$op_retrieve" = 0 ]; then
 		msg debug "Not retrieving repos..."
@@ -150,6 +187,8 @@ retrieve_repos() {
 			msg debug "Cloning $repo..."
 			git clone --depth 1 "$repo" "$conf_workdir"/"$repodir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
+			msg info "Creating templates list"
+			create_template_list_for_repo
 		else
 			msg debug "$repo already exists in $repodir !"
 		fi
@@ -270,7 +309,35 @@ merge_xtra_templates() {
 				if should_copy_template "$source_template" "$dest_template"; then
 					# Remove from merged_dir if it already exists
 					[ -d "$merged_dir/$template_name" ] && rm -rf "${merged_dir:?}/$template_name"
+
+					# Copy template directory
 					cp -r "$dir" "$merged_dir" || msg error "Cannot merge templates"
+
+					# Extract commit metadata from source repository
+					cd "$conf_workdir/$repodir" || continue
+
+					# Get relative path for git log (srcpkgs/template_name or just template_name)
+					if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
+						git_path="srcpkgs/$template_name"
+					else
+						git_path="$template_name"
+					fi
+
+					commit_msg=$(git log -1 --format="%s" -- "$git_path" 2>/dev/null)
+					commit_author=$(git log -1 --format="%an <%ae>" -- "$git_path" 2>/dev/null)
+					commit_date=$(git log -1 --format="%aI" -- "$git_path" 2>/dev/null)
+
+					# Save commit metadata to file
+					if [ -n "$commit_msg" ]; then
+						cat > "$merged_dir/$template_name/.xut_commit_meta" <<-EOF
+						commit_msg='$commit_msg'
+						commit_author='$commit_author'
+						commit_date='$commit_date'
+						source_repo='$repo_name'
+						EOF
+					fi
+
+					cd "$conf_workdir" || msg error "Cannot return to workdir"
 				fi
 			done
 			printf "\n"
@@ -283,63 +350,157 @@ merge_xtra_templates() {
 	grep -lr "restricted=yes" "$conf_workdir/$default_repo_dir/srcpkgs/" |  awk -F '/' '{print $(NF-1)}' > "$conf_workdir/templates_restricted-packages"
 }
 
-update_template_list() {
-	# First remove all templates lists
-	#if [ "$op_log" = 0 ]; then
-	#	rm -f "$conf_workdir"/templates_*
-	#	rm -f "$conf_workdir"/*_templates
-	#else
-	#	rm -v "$conf_workdir"/templates_* 2>/dev/null
-	#	rm -v "$conf_workdir"/*_templates 2>/dev/null
-	#fi
-	# Update all templates list
-	msg debug "Creating list of templates (This will take a while)"
-	all_templates=""
-	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
-	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
-	for list in "$conf_workdir"/templates_*; do
-		cat "$list" >>"$conf_workdir"/xtra_templates_source
-	done
-	# Uniq and sort template lists
-	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
-	rm -f "$conf_workdir"/xtra_templates_source
-	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
-	rm -f "$conf_workdir"/all_templates_source
-	msg debug "Template merge completed."
-	msg info "
-	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
-	xtra_templates: $(cat "$conf_workdir"/xtra_templates | wc -w) (Not unique)
-	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${reset_colour}
-	"
-}
-
 integrate_xtra_templates() {
+	# Early return if integration is not needed
 	if [ "$op_integrate" = 0 ]; then
 		msg debug "Integration not needed"
-		return
+		return 0
 	fi
-	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
+
+	# Copy merged directory contents to the srcpkgs/ of the void-packages clone
 	merge_xtra_templates
-	# Check if merged_dir has any content
-	if [ -n "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
-		# Remove original directories from void-packages to avoid stale patches
-		msg debug "Cleaning older package directories from void-packages"
-		for merged_pkg in "$merged_dir"/*; do
-			pkg_name=$(basename "$merged_pkg")
-			original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
-			if [ -d "$original_pkg" ]; then
-				msg debug "Removing old package directory: $pkg_name"
-				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
-			fi
-		done
-		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
-		msg info "Merged templates copied to srcpkgs"
-	else
-		msg info "No new or updated templates to merge"
+
+	# Verify merged_dir variable is set
+	if [ -z "$merged_dir" ]; then
+		msg error "merged_dir variable is not set"
+		return 1
 	fi
+
+	# Check if merged_dir exists and has content
+	if [ ! -d "$merged_dir" ]; then
+		msg debug "Merged directory does not exist: $merged_dir"
+		return 0
+	fi
+
+	if [ -z "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
+		msg info "No new or updated templates to merge"
+		return 0
+	fi
+
+	# Change to repository directory early to track git history
+	cd "$conf_workdir/$default_repo_dir" || {
+		msg error "Default repo does not exist: $conf_workdir/$default_repo_dir"
+		return 1
+	}
+
+	# Switch to or create merge branch
+	current_branch=$(git branch --show-current)
+	if [ "$current_branch" != "$merge_branch" ]; then
+		msg info "Switching to '$merge_branch' branch"
+
+		# Try to switch to existing branch, create if it doesn't exist
+		if ! git switch -mq "$merge_branch" 2>/dev/null; then
+			git branch "$merge_branch" || {
+				msg error "Cannot create branch: $merge_branch"
+				return 1
+			}
+			git switch -q "$merge_branch" || {
+				msg error "Cannot switch to branch: $merge_branch"
+				return 1
+			}
+		fi
+	fi
+
+	# Process merged packages and commit each one with original message
+	msg debug "Processing and committing package updates"
+	for merged_pkg in "$merged_dir"/*; do
+		# Skip if no files match (empty glob)
+		[ -e "$merged_pkg" ] || continue
+
+		pkg_name=$(basename "$merged_pkg")
+		original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
+
+		# Get the last commit message from metadata file
+		commit_msg=""
+		commit_author=""
+		commit_date=""
+		source_repo=""
+
+		if [ -f "$merged_pkg/.xut_commit_meta" ]; then
+			. "$merged_pkg/.xut_commit_meta"
+			rm -f "$merged_pkg/.xut_commit_meta"
+		fi
+
+		# Remove old package directory if exists
+		if [ -d "$original_pkg" ]; then
+			msg debug "Removing old package directory: $pkg_name"
+			rm -rf "$original_pkg" || {
+				msg error "Cannot remove $original_pkg"
+				return 1
+			}
+		fi
+
+		# Copy new package
+		cp -r "$merged_pkg" "$conf_workdir/$default_repo_dir/srcpkgs/" || {
+			msg error "Cannot copy package $pkg_name to srcpkgs"
+			return 1
+		}
+
+		# Stage the changes
+		git add "srcpkgs/$pkg_name" || {
+			msg error "Cannot stage package: $pkg_name"
+			return 1
+		}
+
+		# Commit with original message and metadata
+		if [ -n "$commit_msg" ]; then
+			# Add source repository to commit message
+			if [ -n "$source_repo" ]; then
+				full_commit_msg="xut: $commit_msg (from $source_repo)"
+			else
+				full_commit_msg="xut: $commit_msg"
+			fi
+
+			msg debug "Committing $pkg_name with original metadata from $source_repo"
+
+			# Set author and date if available
+			if [ -n "$commit_author" ] && [ -n "$commit_date" ]; then
+				GIT_AUTHOR_NAME="${commit_author%% <*}"
+				GIT_AUTHOR_EMAIL="${commit_author##*<}"
+				GIT_AUTHOR_EMAIL="${GIT_AUTHOR_EMAIL%>}"
+				GIT_AUTHOR_DATE="$commit_date"
+				export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
+
+				git commit -m "$full_commit_msg" || {
+					msg error "Cannot commit package: $pkg_name"
+					return 1
+				}
+
+				unset GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_AUTHOR_DATE
+			else
+				git commit -m "$full_commit_msg" || {
+					msg error "Cannot commit package: $pkg_name"
+					return 1
+				}
+			fi
+		else
+			msg debug "Committing $pkg_name with default message"
+			git commit -m "xut: update template for $pkg_name" || {
+				msg error "Cannot commit package: $pkg_name"
+				return 1
+			}
+		fi
+
+		msg info "Committed: $pkg_name"
+	done
+
+	msg info "All merged templates committed to $merge_branch"
+
+	# Update template list if needed
 	if [ "$op_changed" = 1 ]; then
 		update_template_list
+
+		# Commit template list changes
+		if git diff --quiet HEAD; then
+			msg debug "No template list changes to commit"
+		else
+			git add -A || msg error "Cannot stage template list changes"
+			git commit -m "xut: update template list" || msg error "Cannot commit template list"
+			msg info "Template list updated and committed"
+		fi
 	fi
+
+	return 0
 }
 
 xbps_src_command() {
