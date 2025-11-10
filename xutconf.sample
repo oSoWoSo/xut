@@ -7,6 +7,10 @@
 # You can uncomment and change to a different dir if you want to.
 conf_workdir="${HOME}/.xut"
 
+# Unncoment for cloning full history instead of default --depth 1
+# Only if you really need  (Take much longer)
+clone_history=full
+
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the
 # addtional_repos variable as a list
