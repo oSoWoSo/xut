@@ -65,9 +65,7 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
-#merged_dir=$(mktemp -d)
-[ -z "$tmpPrefix" ] && tmpPrefix=/tmp
-merged_dir=$(mktemp -d "$tmpPrefix/xutTMP.XXX")
+merged_dir=$(mktemp -d)
 
 # Set default operation variables
 op_xbps_src=""
