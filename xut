@@ -15,6 +15,9 @@
 #set -e # End on first error
 #set -x # Show what script is going to do
 
+# Change version to newer after every update
+readonly version=0.3.2
+
 msg() {
 	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
 	# ${2} is the message content needs to be here, all messages depend on it.
@@ -97,6 +100,7 @@ get_revision() {
 usage() {
 	# Display basic tui information
 	cat <<-EOH
+		xut $version
 		Usage: $(basename "$0") [options]
 
 		*x*tra *u*ser *t*emplates
