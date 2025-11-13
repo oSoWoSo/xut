@@ -124,8 +124,8 @@ usage() {
 _cmd() {
 	if [ "$op_log" = 0 ]; then
 		case "${1}" in
-			rm)       rm -f "${2}" ;;
-			rmd)      rm -fr "${2}" ;;
+			rm)       rm -f ${@} ;;
+			rmd)      rm -fr ${@} ;;
 			copy)     cp -Pr --remove-destination "${2}" "${3}" ;;
 			pull)     git pull -q origin ;;
 			branch)   git branch -q "${2}" ;;
@@ -135,8 +135,8 @@ _cmd() {
 		esac
 	else
 		case "${1}" in
-			rm)       rm -fv "${2}" ;;
-			rmd)      rm -frv "${2}" ;;
+			rm)       rm -fv ${@} ;;
+			rmd)      rm -frv ${@} ;;
 			copy)     cp -Prv --remove-destination "${2}" "${3}" ;;
 			pull)     git pull origin ;;
 			branch)   git branch -v "${2}" ;;
