@@ -437,8 +437,9 @@ search_templates() {
 			found=1
 			file_name=$(basename "$file")
 			case "$file_name" in
-				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2-) ;;
+				restricted_templates) file_name="void-packages (restricted)" ;;
 				void_templates) file_name="void-packages" ;;
+				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2-) ;;
 			esac
 			msg info "Found in ${green}${bold}$file_name${R}:"
 			grep "$template_query" "$file" | while read -r line; do
