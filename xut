@@ -73,19 +73,20 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%T")".log
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
-merged_dir=$(mktemp -d)
+merged_dir=$(mktemp -d "${TMPDIR:-/tmp}/xut.merged")
+trap 'rm -rf "$merged_dir"' EXIT INT TERM
 
 # Set default operation variables
-op_log=0
-op_query=0
-op_build=0
-op_install=0
-op_xbps_src=""
-op_update=0
-op_changed=0
-op_retrieve=0
-op_sync=0
-op_integrate=0
+op_log=0		#Controls the appearance of debug messages for the user (-l)
+op_query=0		#Enables searching for templates (-q)
+op_build=0		#Enables building packages, for internal use.
+op_install=0	#Enables instaling packages (-i <package1,package2>)	
+op_xbps_src=""	#Contains the xbps-src command to be given after the -x argument
+op_update=0		#Enables the update operation (-u)
+op_changed=0	#Indicated that the repo contents have changed, for internal use
+op_retrieve=0	#Enables cloning repos (-s)
+op_sync=0		#Enables syncing repos
+op_integrate=0	#Intergrate all templates into a merged repo.
 
 get_version() {
 	# Get the version from the template file given as ${1}
