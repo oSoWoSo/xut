@@ -136,7 +136,7 @@ _cmd() {
 		case "${1}" in
 			rm)       rm -fv "${2}" ;;
 			rmd)      rm -frv "${2}" ;;
-			copy)     cp -Pr --debug --remove-destination "${2}" "${3}" ;;
+			copy)     cp -Prv --remove-destination "${2}" "${3}" ;;
 			pull)     git pull origin ;;
 			branch)   git branch -v "${2}" ;;
 			switch)   git switch -m "${2}" ;;
@@ -147,12 +147,11 @@ _cmd() {
 }
 
 _clone() {
-	standard='"$repo" "$conf_workdir/$repodir"'
 	case "${1}" in
-		full)       git clone ${standard} ;;
-		normal)     git clone --depth 1 --no-single-branch ${standard} ;;
-		branch)     git clone -b "$branch" ${standard} ;;
-		fullBranch) git clone --depth 1 --no-single-branch -b "$branch" ${standard} ;;
+		full)       git clone "$repo" "$conf_workdir"/"$repodir" ;;
+		normal)     git clone --depth 1 --no-single-branch "$repo" "$conf_workdir"/"$repodir" ;;
+		branch)     git clone -b "$branch" "$repo" "$conf_workdir"/"$repodir" ;;
+		fullBranch) git clone --depth 1 --no-single-branch -b "$branch" "$repo" "$conf_workdir"/"$repodir" ;;
 	esac
 }
 
@@ -173,16 +172,15 @@ include_additional_repos() {
 
 retrieve_repos() {
 	if [ "$op_retrieve" = 0 ]; then
-		msg debug "Not retrieving repos..."
+		msg debug "Retrieving repos (skipped)"
 		return
 	fi
 	# Clone every configured repo if needed.
-	msg info "Cloning repos..."
 	for repo in $repos_list; do
 		find_repodir "$repo"
 		if [ ! -d "$conf_workdir"/"$repodir" ]; then
 			op_changed=1
-			msg debug "Cloning $repo..."
+			msg info "Cloning $repo..."
 			_clone normal || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
 		else
@@ -198,19 +196,19 @@ retrieve_repos() {
 sync_repos() {
 	# Sync every configured repo.
 	if [ "$op_sync" = 0 ]; then
-		msg debug "Not syncing repos..."
+		msg info "Repo sync (skipped)"
 		return
 	fi
-	msg info "Syncing repos..."
 	for repo in $repos_list; do
 		find_repodir "$repo"
-		msg debug "Syncing $repo..."
+		msg info "Syncing $repo..."
 		cd "$conf_workdir"/"$repodir" || msg error "Cannot change to $conf_workdir/$repodir"
 		current_branch=$(_cmd branch --show-current 2>/dev/null)
 		if [ "$repo" = "$default_repo" ] && [ "$current_branch" != "master" ]; then
 			_cmd checkout master || msg error "Cannot switch to master branch. Probably uncommitted changes on $current_branch?"
 			msg debug "Switched to master branch"
 		fi
+		# 'pull origin' to pull from same branch
 		_cmd pull || msg error "Cannot sync to $repo"
 		msg info "$repo ${green}synced${R}"
 	done
@@ -338,11 +336,11 @@ integrate_xtra_templates() {
 			original_pkg="$conf_workdir/$default_repo_dir/srcpkgs/$pkg_name"
 			if [ -d "$original_pkg" ]; then
 				msg debug "Removing old package directory: $pkg_name"
-				rm -rf "$original_pkg" || msg error "Cannot remove $original_pkg"
+				_cmd rmd "$original_pkg" || msg error "Cannot remove $original_pkg"
 			fi
 		done
-		cp -r "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
-		msg info "Merged templates copied to srcpkgs"
+		_cmd copy "$merged_dir"/* "$conf_workdir/$default_repo_dir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		msg info "Templates copied into $default_repo_dir branch ${green}xut${R}"
 	else
 		msg info "No new or updated templates to merge"
 	fi
@@ -462,7 +460,7 @@ build_packages() {
 	package_list="$(echo "$packages" | tr ',' ' ')"
 	export package_list="$package_list"
 	for argument in s l h b u i; do
-		first_arg=$(echo $package_list | awk '{print $1}')
+		first_arg=$(echo "$package_list" | awk '{print $1}')
 		if [ $argument = "$first_arg" ]; then
 			msg error "The *$argument* argument cannot be used in that place, a package name is expected!"
 		fi
