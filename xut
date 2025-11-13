@@ -275,7 +275,7 @@ update_template_list() {
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
 	all_templates=""
-	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
+	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -exec basename {} ")
 	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
 	for list in "$conf_workdir"/templates_*; do
 		cat "$list" >>"$conf_workdir"/xtra_templates_source
