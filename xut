@@ -55,6 +55,7 @@ readonly default_repo=https://github.com/void-linux/void-packages
 readonly repo_abyss_packages=https://codeberg.org/mobinmob/abyss-packages
 default_repo_dir=$(printf '%s' "$default_repo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
 readonly default_repo_dir
+readonly merge_branch=xut
 [ -z "$conf_workdir" ] && conf_workdir="$HOME"/.xut
 
 # Define a log filename
@@ -155,6 +156,17 @@ _clone() {
 	esac
 }
 
+show_counts() {
+	echo "${green}(~>) Templates:${R}
+ ${bold}void-packages:${R} $(cat "$conf_workdir"/void_templates | wc -l) (+restricted: $(cat "$conf_workdir"/restricted_templates | wc -l))
+ ${bold}xtra repositories:${R}"
+	for list in "$conf_workdir"/templates_*; do
+		echo " $(echo "$list" | cut -d'_' -f2-)${green}:${R} $(cat "$list" | wc -l)"
+	done
+	echo " ${bold}Unique:${R} ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -l)${R}
+	"
+}
+
 find_repodir() {
 	# Define a proper (no slashes...) directory name for a remote git repo
 	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
@@ -246,6 +258,15 @@ should_copy_template() {
 	return 1
 }
 
+# Have distro srcpkgs directory for templates?
+have_srcpkgs() {
+	if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
+		searchPath="$conf_workdir/$repodir/srcpkgs"
+	else
+		searchPath="$conf_workdir/$repodir"
+	fi
+}
+
 merge_xtra_templates() {
 	# First remove all templates lists
 	_cmd rm "$conf_workdir"/templates_*
@@ -256,19 +277,16 @@ merge_xtra_templates() {
 		find_repodir "$repo"
 		if [ "$repo" != "$default_repo" ]; then
 			msg info "Merging templates from ${green}${bold}$repo${R}"
-			search_path="$conf_workdir/$repodir"
-			if [ -d "$conf_workdir/$repodir/srcpkgs" ]; then
-				search_path="$conf_workdir/$repodir/srcpkgs"
-			fi
-			msg debug "Searching in $search_path"
+			have_srcpkgs
+			msg debug "Searching in $searchPath"
 			# Create xtra repo templates list
 			repo_name=$(basename "$repo")
 			# Include both directories and symlinks
 			# Show progress during template processing
-			find "$search_path" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
+			find "$searchPath" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >>"$conf_workdir/templates_$repo_name"
 			processed=0
 			# Process templates
-			for dir in "$search_path"/*; do
+			for dir in "$searchPath"/*; do
 				[ ! -d "$dir" ] && [ ! -L "$dir" ] && continue
 				[ ! -e "$dir/template" ] && continue
 				processed=$((processed + 1))
@@ -284,40 +302,41 @@ merge_xtra_templates() {
 				fi
 			done
 			printf "\n"
-		else
-			#_cmd checkR master
-			# Include both directories and symlinks for void_templates
-			find "$conf_workdir/$default_repo_dir/srcpkgs" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >"$conf_workdir"/void_templates
-			#7_cmd checkR xut
 		fi
 	done
-	# Create template list for restricted packages, in order to include them in update discovery and updates.
-	grep -lr "restricted=yes" "$conf_workdir/$default_repo_dir/srcpkgs/" |  awk -F '/' '{print $(NF-1)}' > "$conf_workdir/templates_restricted-packages"
 }
 
 update_template_list() {
-	# First remove all templates lists
-	_cmd rm "$conf_workdir"/templates_* 2>/dev/null
-	_cmd rm "$conf_workdir"/*_templates 2>/dev/null
-	# Update all templates list
-	msg debug "Creating list of templates (This will take a while)"
-	all_templates=""
-	all_templates=$(find "$conf_workdir/$default_repo_dir/srcpkgs/" -maxdepth 1 -printf "%f ")
-	echo "$all_templates" | tr ' ' '\n' >"$conf_workdir"/all_templates_source
-	for list in "$conf_workdir"/templates_*; do
-		cat "$list" >>"$conf_workdir"/xtra_templates_source
+	# Remove old lists (Just in case, if you remove additional repo)
+	_cmd rm "$conf_workdir"/*_templates
+	_cmd rm "$conf_workdir"/templates_*
+	msg info "Creating list of templates"
+	for repo in $repos_list; do
+		if [ "$repo" = "$default_repo" ]; then
+			# void-packages templates
+			_cmd checkR master
+			#find ${default_repo_dir}/srcpkgs -mindepth 1 -maxdepth 1 \( -type d -o -type l \) -exec basename {} \; >void_templates
+			ls "$conf_workdir"/"$default_repo_dir"/srcpkgs | sort -u >"$conf_workdir"/void_templates_SOURCE
+			# Restricted templates, in order to include them in update discovery and updates.
+			grep -lr "restricted=yes" "$conf_workdir"/"$default_repo_dir"/srcpkgs/ | awk -F '/' '{print $(NF-1)}' | sort -u >"$conf_workdir"/restricted_templates
+			_cmd checkR xut
+		else
+			# xtra templates
+			find_repodir "$repo"
+			have_srcpkgs
+			find -L "$searchPath" -type f -name "template" -printf '%h\n' 2>/dev/null | xargs -n1 basename | sort -u >"$conf_workdir"/"templates$repodir"
+		fi
 	done
-	# Uniq and sort template lists
-	cat "$conf_workdir"/xtra_templates_source | sort -u >"$conf_workdir"/xtra_templates
-	_cmd rm "$conf_workdir"/xtra_templates_source
-	cat "$conf_workdir"/all_templates_source | sort -u >"$conf_workdir"/all_templates
-	_cmd rm "$conf_workdir"/all_templates_source
-	msg debug "Template merge completed."
-	msg info "
-	templates in void-packages: $(cat "$conf_workdir"/void_templates | wc -w)
-	xtra_templates: $(cat "$conf_workdir"/xtra_templates | wc -w) (Not unique)
-	Available templates: ${green}${bold}$(cat "$conf_workdir"/all_templates | wc -w)${R}
-	"
+	grep -vxFf "$conf_workdir"/restricted_templates "$conf_workdir"/void_templates_SOURCE >"$conf_workdir"/void_templates
+	cat "$conf_workdir"/void_templates >"$conf_workdir"/all_templates_SOURCE
+	cat "$conf_workdir"/restricted_templates >>"$conf_workdir"/all_templates_SOURCE
+	for list in "$conf_workdir"/templates_*; do
+		cat "$list" >>all_templates_SOURCE
+	done
+	sort -u "$conf_workdir"/all_templates_SOURCE >"$conf_workdir"/all_templates
+	# cleanup
+	_cmd rm "$conf_workdir"/void_templates_SOURCE
+	_cmd rm "$conf_workdir"/all_templates_SOURCE
 }
 
 integrate_xtra_templates() {
@@ -344,10 +363,46 @@ integrate_xtra_templates() {
 	else
 		msg info "No new or updated templates to merge"
 	fi
+
+	# Check if merged_dir exists and has content
+	if [ ! -d "$merged_dir" ]; then
+		msg debug "Merged directory does not exist: $merged_dir"
+		return 0
+	fi
+
+	if [ -z "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
+		msg info "No new or updated templates to merge"
+		return 0
+	fi
+
+	# Change to repository directory early to track git history
+	cd "$conf_workdir/$default_repo_dir" || {
+		msg error "Default repo does not exist: $conf_workdir/$default_repo_dir"
+		return 1
+	}
+
+	# Switch to or create merge branch
+	current_branch=$(_cmd branch --show-current)
+	if [ "$current_branch" != "$merge_branch" ]; then
+		msg info "Switching to '$merge_branch' branch"
+
+		# Try to switch to existing branch, create if it doesn't exist
+		if ! _cmd switch "$merge_branch"; then
+			_cmd branch "$merge_branch" || {
+				msg error "Cannot create branch: $merge_branch"
+				return 1
+			}
+			_cmd switch "$merge_branch" || {
+				msg error "Cannot switch to branch: $merge_branch"
+				return 1
+			}
+		fi
+	fi
 	# Update template list if needed
 	if [ "$op_changed" = 1 ]; then
 		update_template_list
 	fi
+	show_counts
 }
 
 xbps_src_command() {
@@ -372,13 +427,13 @@ search_templates() {
 
 	msg info "Searching for <$template_query> ..."
 	found=0
-	for file in "$conf_workdir"/templates_* "$conf_workdir"/void_templates; do
+	for file in "$conf_workdir"/templates_* "$conf_workdir"/void_templates "$conf_workdir"/restricted_templates; do
 		[ ! -f "$file" ] && continue
 		if grep -q "$template_query" "$file"; then
 			found=1
 			file_name=$(basename "$file")
 			case "$file_name" in
-				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2) ;;
+				templates_*) file_name=$(echo "$file_name" | cut -d'_' -f2-) ;;
 				void_templates) file_name="void-packages" ;;
 			esac
 			msg info "Found in ${green}${bold}$file_name${R}:"
@@ -516,7 +571,14 @@ while getopts "slhub:i:x:q:" OPTION; do
 		x) op_xbps_src="$OPTARG" ;;
 		q) template_query="$OPTARG" && op_query=1 ;;
 		u) op_update=1 ;;
-		h|*) usage; exit 0 ;;
+		h|*)
+			usage
+			# Update template_list if not exist
+			if [ ! -f "$conf_workdir"/all_templates ]; then
+				update_template_list
+			fi
+			show_counts
+			exit 0 ;;
 	esac
 done
 
