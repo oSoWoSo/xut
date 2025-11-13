@@ -82,6 +82,21 @@ op_retrieve=0
 op_sync=0
 op_integrate=0
 
+get_version() {
+	# Get the version from the template file given as ${1}
+	version=$(grep -E "^(version)[=]" "${1}" \
+		| sed -E 's/^(version)[=][[:space:]]*["]?([0-9.]+)["]?.*/\2/')
+	export version="$version"
+}
+
+get_revision() {
+	# Get the revision from the template file given as ${1}
+	revision=$(grep -E "^(revision)[=]" "${1}" \
+		| sed -E 's/^(revision)[=][[:space:]]*["]?([0-9]+)["]?.*/\2/')
+	export revision="$revision"
+}
+
+
 usage() {
 	# Display basic tui information
 	cat <<-EOH
@@ -356,6 +371,11 @@ discover_updates() {
 	# Compare versions of available templates to these of installed
 	# packages and create a list of packages to update.
 	msg info "Checking for updatable packages..."
+	for list in "$conf_workdir"/templates_*; do
+		cat "$list" >>"$conf_workdir"/xtra_templates
+	done
+	xtra_templates="$(cat "$conf_workdir"/xtra_templates | tr "\n" " ")"
+	echo $xtra_templates
 	for template in $xtra_templates; do
 		msg debug "Checking $template"
 		if xbps-query -p pkgname "$template" >/dev/null; then
@@ -364,10 +384,10 @@ discover_updates() {
 	done
 	for template in $templates_to_check; do
 		msg debug "Comparing versions of $template"
-		get_version "$merged_dir/$template"/template
-		get_revision "$merged_dir/$template"/template
-		template_version=$(echo "$version"_"$revision" | sed 's/\.//g')
-		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g" | sed 's/\.//g')
+		get_version "$conf_workdir/$default_repo_dir/srcpkgs/$template"/template
+		get_revision "$conf_workdir/$default_repo_dir/srcpkgs/$template"/template
+		template_version=$(echo "$version""$revision" | sed 's/\.//g')
+		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g" | sed 's/\.//g' | sed 's/\_//g' )
 		if [ "$installed_version" -lt "$template_version" ]; then
 			templates_to_update="$templates_to_update $template"
 		fi
