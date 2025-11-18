@@ -127,7 +127,7 @@ find_repodir() {
 }
 
 include_additional_repos() {
-	# Add all repos to a list, repo_abyss_package is last and its contents superseed the others.
+	# Add all repos to a list, repo_abyss_packages is last
 	repos_list="$default_repo"
 	#shellcheck disable=SC2154
 	for xtra_repo in $additional_repos; do
@@ -155,7 +155,7 @@ retrieve_repos() {
 		fi
 	done
 
-	# Remove all non-upstream repo from the void-packaged clone to start from scratch
+	# Remove all non-upstream repo from the void-packages clone to start from scratch
 	cd "$conf_workdir"/"$default_repo_dir" && git checkout .
 	op_sync=1
 }
