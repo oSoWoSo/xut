@@ -81,7 +81,7 @@ log_file="$conf_log_dir/$(basename "$0")_$(date +"%Y%m%d_%H%M%S").log"
 # Check for needed dirs.
 [ ! -e "$conf_log_dir" ] && mkdir -p "$conf_log_dir"
 readonly log_file
-merged_dir=$(mktemp -d "${TMPDIR:-/tmp}/xut.merged")
+merged_dir=$(mktemp -d "${TMPDIR:-/tmp}/xutXXXX.merged")
 trap 'rm -rf "$merged_dir"' EXIT INT TERM
 
 # Set default operation variables
