@@ -17,20 +17,26 @@
 
 # Change version to newer after every update
 readonly xut_version=0.3.2
+distribution_sanity_check() {
+	# Disable install and update when run in a non-Void distribution
+	[ -r /etc/os-release ] && . /etc/os-release
+	if [ -z "$NAME" ] || [ "$NAME" != "Void" ]; then
+		op_update=0
+		op_install=0
+		msg info "[xut] is not running under Void Linux. Install and update operations are disabled." ; fi
+}
 
 msg() {
 	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
 	# ${2} is the message content needs to be here, all messages depend on it.
 
 	# Colours
-	if command -v tput >/dev/null 2>&1; then
-		if [ -t 1 ];then
-			green=$(tput setaf 2);red=$(tput setaf 1);yellow=$(tput setaf 3);
-			fade=$(tput dim);bold=$(tput bold);	reset_colour=$(tput sgr0)
-		fi
-else
-    green=""; red=""; yellow=""; fade=""; bold=""; reset_colour=""
-fi
+	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then	# make tput(1) optional, respect $NO_COLOR
+		green=$(tput setaf 2); red=$(tput setaf 1); yellow=$(tput setaf 3)
+		fade=$(tput dim); bold=$(tput bold); reset_colour=$(tput sgr0)	
+	else
+	 	green=""; red=""; yellow=""; fade=""; bold=""; reset_colour=""
+	fi
 	
 	if [ "${1}" = "error" ]; then
 		printf "%s\n" "${red}${bold}(!!) Error:${reset_colour} ${bold}${2}${reset_colour}" && exit 1
