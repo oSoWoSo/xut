@@ -16,7 +16,7 @@
 #set -x # Show what script is going to do
 
 # Change version to newer after every update
-readonly xut_version=0.3.2
+readonly xut_version=0.4.1-dev
 distribution_sanity_check() {
 	# Disable install and update when run in a non-Void distribution
 	[ -r /etc/os-release ] && . /etc/os-release
