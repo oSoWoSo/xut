@@ -29,6 +29,8 @@ official repos. It clones both the void-packages and abyss-packages repository (
    - a `sort` command that supports the `-V` argument (both coreutils and busybox work),
    - the `tput` tool from _ncurses_ (optional).
 
+	Note that xut will run in other distributions that have sh, posix userland, git and sort -V available,
+	but installing (-i) and upgrading (-u) packages is disabled.
 ### Todo
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
