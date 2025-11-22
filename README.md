@@ -26,7 +26,8 @@ official repos. It clones both the void-packages and abyss-packages repository (
    - `git`,
    - `mktemp`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
-   - the `tput` tool from _ncurses_.
+   - a `sort` command that supports the `-V` argument (both coreutils and busybox work),
+   - the `tput` tool from _ncurses_ (optional).
 
 ### Todo
 
