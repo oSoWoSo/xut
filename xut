@@ -213,7 +213,7 @@ should_copy_template() {
 	dest_template_name=$(echo "$dest_template" | awk -F '/' '{print $(NF-1)}')
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$dest_template" ]; then
-		msg debug "Merging $template_name"
+		msg info "... $template_name"
 		op_changed=1
 		return 0
 	fi
@@ -225,7 +225,7 @@ should_copy_template() {
 	xbps-uhelper cmpver "$dest_ver" "$src_ver"
 	# If source is newer
 	if [ "$?" = 255 ]; then
-		msg info "newer ${green}${bold}$template_name${reset_colour} version"
+		msg info "... $template_name ${green}${bold}$src_ver${reset_colour}"
 		op_changed=1
 		return 0
 	fi
