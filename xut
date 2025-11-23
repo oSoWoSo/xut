@@ -471,7 +471,7 @@ install_packages() {
 main() {
 	# Check for root
 	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
-	msg info "Full command given is [xut $showargs]."
+	msg info "Full command given is [${green}xut $showargs${reset_colour}]."
 
 	distribution_sanity_check
 	[ -n "$op_xbps_src" ] && xbps_src_command
