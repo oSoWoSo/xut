@@ -13,7 +13,7 @@
 # For debug uncomment desired set
 #set -u # End if are here unused variables
 #set -e # End on first error
-#set -x # Show what script is going to do
+set -x # Show what script is going to do
 
 # Change version to newer after every update
 readonly xut_version=0.4.1-dev
@@ -141,6 +141,14 @@ create_template_list() {
    ls -d "${1}"/*/ | sed 's/\/$//'|awk -F"/" '{ print $NF }' > "${2}"
 }
 
+extract_verrev() { 
+awk -F= ' 
+	/^version=/ { gsub(/"/, "", $2); ver=$2 }
+	/^revision=/ { gsub(/"/, "", $2); rev=$2 }
+	 END { printf "%s_%s", ver, rev }
+	' "$1" 
+}
+
 include_additional_repos() {
 	# Add all repos to a list, repo_abyss_packages is last
 	repos_list="$default_repo"
@@ -211,18 +219,12 @@ should_copy_template() {
 	fi
 
 	# Extract full version_revision strings
-	src_ver=$(grep -E "^(version|revision)=" "$source_template" 2>/dev/null | sed -E 's/^[^=]+=["'\''[:space:]]*([0-9.]+).*/\1/' | tr '\n' '_' | sed 's/_$//')
-	dest_ver=$(grep -E "^(version|revision)=" "$dest_template" 2>/dev/null | sed -E 's/^[^=]+=["'\''[:space:]]*([0-9.]+).*/\1/' | tr '\n' '_' | sed 's/_$//')
-
+	src_ver=$(extract_verrev "$source_template")
+	dest_ver=$(extract_verrev "$dest_template")
 	msg debug "Comparing: $source_template_name($src_ver) vs $dest_template_name($dest_ver)"
-
-	# Use sort -V to compare version_revision strings. -V is not defined in POSIX/SUS
-	if printf '%s\n' "2.3.1" "2.2.9" | LC_ALL=C sort -V >/dev/null 2>&1; then
-		newer=$(printf '%s\n%s\n' "$src_ver" "$dest_ver" | LC_ALL=C sort -V | sed -n '$p')
-	else msg error "You need a sort(1) that supports the -V argument"; fi
-
+	xbps-uhelper cmpver "$destver" "$srcver"
 	# If source is newer
-	if [ "$newer" = "$src_ver" ] && [ "$src_ver" != "$dest_ver" ]; then
+	if [ "$?" = 255 ]; then
 		msg info "newer ${green}${bold}$template_name${reset_colour} version"
 		op_changed=1
 		return 0
@@ -382,7 +384,6 @@ discover_updates() {
 		cat "$list" >>"$conf_workdir"/xtra_templates
 	done
 	xtra_templates="$(cat "$conf_workdir"/xtra_templates | tr "\n" " ")"
-	echo $xtra_templates
 	for template in $xtra_templates; do
 		msg debug "Checking $template"
 		if xbps-query -p pkgname "$template" >/dev/null; then
@@ -391,15 +392,10 @@ discover_updates() {
 	done
 	for template in $templates_to_check; do
 		msg debug "Comparing versions of $template"
-		version=$(grep -E "^(version)[=]" "$conf_workdir/$default_repo_dir/srcpkgs/$template"/template \
-			| sed -E 's/^(version)[=][[:space:]]*["]?([0-9.]+)["]?.*/\2/' | tr '[:alpha:]' '0')
-		revision=$(grep -E "^(revision)[=]" "$conf_workdir/$default_repo_dir/srcpkgs/$template"/template \
-			| sed -E 's/^(revision)[=][[:space:]]*["]?([0-9]+)["]?.*/\2/' | tr '[:alpha:]' '0')
-		template_version=$(echo "$version""$revision" | sed 's/\.//g')
-		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g" | sed 's/\.//g' | sed 's/\_//g' | tr '[:alpha:]' '0')
-		if [ "$installed_version" -lt "$template_version" ]; then
-			templates_to_update="$templates_to_update $template"
-		fi
+		template_version=$(extract_verrev "$conf_workdir/$default_repo_dir/srcpkgs/$template"/template)
+		installed_version=$(xbps-query -p pkgver "$template" | sed "s/$template-//g")
+		xbps-uhelper cmpver "$installed_version" "$template_version"
+		[ "$?" = 255 ] && templates_to_update="$templates_to_update $template"
 	done
 }
 
