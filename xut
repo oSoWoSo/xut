@@ -246,8 +246,8 @@ should_copy_template() {
 	destTemplateName=${destTemplateName##*/}
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$destTemplate" ]; then
-		msg debug "... $templateName"
-		opChanged=1
+		msg info "... $destTemplateName"
+		op_changed=1
 		return 0
 	fi
 
