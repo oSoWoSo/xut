@@ -17,6 +17,12 @@
 
 # Change version to newer after every update
 readonly xut_version=0.4.1-dev
+
+root_check() {
+	# Check for root
+	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
+}
+
 distribution_sanity_check() {
 	# Disable install and update when run in a non-Void distribution
 	[ -r /etc/os-release ] && . /etc/os-release
@@ -469,8 +475,7 @@ install_packages() {
 }
 
 main() {
-	# Check for root
-	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
+	root_check
 	msg info "Full command given is [${green}xut $showargs${reset_colour}]."
 
 	distribution_sanity_check
@@ -493,8 +498,9 @@ while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
-		h)
+		h)	
 			usage
+			root_check
 			exit 0
 			;;
 		b) packages="$OPTARG" && op_build=1 ;;
@@ -504,6 +510,7 @@ while getopts "slhub:i:x:q:" OPTION; do
 		u) op_update=1 ;;
 		*)
 			usage
+			root_check
 			exit 0
 			;;
 	esac
@@ -512,7 +519,7 @@ done
 # Capture all the arguments given
 showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
-[ "$OPTIND" = 1 ] && usage && exit
+[ "$OPTIND" = 1 ] && usage && root_check && exit
 if [ "$op_log" = 1 ]; then
 	main "$@" 2>&1 | tee -- "$log_file"
 else
