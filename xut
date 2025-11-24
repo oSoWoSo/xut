@@ -141,12 +141,12 @@ create_template_list() {
    ls -d "${1}"/*/ | sed 's/\/$//'|awk -F"/" '{ print $NF }' > "${2}"
 }
 
-extract_verrev() { 
-awk -F= ' 
+extract_verrev() {
+awk -F= '
 	/^version=/ { gsub(/"/, "", $2); ver=$2 }
 	/^revision=/ { gsub(/"/, "", $2); rev=$2 }
 	 END { printf "%s_%s", ver, rev }
-	' "$1" 
+	' "$1"
 }
 
 include_additional_repos() {
