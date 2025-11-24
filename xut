@@ -144,11 +144,11 @@ find_repodir() {
 }
 
 create_template_list() {
-   find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' > "$2"
+	find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' > "$2"
 }
 
 extract_verrev() {
-awk -F= ' /^version=/ { gsub(/"/, "", $2); ver=$2 }
+	awk -F= ' /^version=/ { gsub(/"/, "", $2); ver=$2 }
 	 /^revision=/ { gsub(/"/, "", $2); rev=$2 }
 	 END { printf "%s_%s", ver, rev }
 	 ' "$1"
