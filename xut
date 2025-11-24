@@ -167,7 +167,7 @@ include_additional_repos() {
 
 retrieve_repos() {
 	if [ "$op_retrieve" = 0 ]; then
-		msg debug "Not retrieving repos..."
+		msg debug "Retrieving repos not requested"
 		return
 	fi
 	# Clone every configured repo if needed.
@@ -192,7 +192,7 @@ retrieve_repos() {
 sync_repos() {
 	# Sync every configured repo.
 	if [ "$op_sync" = 0 ]; then
-		msg debug "Not syncing repos..."
+		msg debug "Syncing repos not requested"
 		return
 	fi
 	msg info "Syncing repos..."
@@ -311,8 +311,8 @@ update_template_list() {
 
 integrate_xtra_templates() {
 	if [ "$op_integrate" = 0 ]; then
-		msg debug "Integration not needed"
-		return
+		msg debug "Integration of xtra templates not requested"
+		return 0
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
 	merge_xtra_templates
@@ -406,21 +406,27 @@ discover_updates() {
 
 update_packages() {
 	# Build and install available updates.
-	if [ "$op_update" = 1 ]; then
-		discover_updates
-		if [ -n "$templates_to_update" ]; then
-			msg info "Updating $templates_to_update ..."
-		else
-			msg warn "No updates available"
-			exit 0
-		fi
-		op_install=1
-		packages="$templates_to_update"
-		install_packages
+	if [ "$op_update" = 0 ]; then
+		msg debug "No packages update requested"
+		return 0
 	fi
+	discover_updates
+	if [ -n "$templates_to_update" ]; then
+		msg info "Updating $templates_to_update ..."
+	else
+		msg warn "No updates available"
+		exit 0
+	fi
+	op_install=1
+	packages="$templates_to_update"
+	install_packages
 }
 
 build_packages() {
+	if [ "$op_build" = 0 ]; then
+		msg debug "No packages build requested"
+		return 0
+	fi
 	# Prepare for installation
 
 	# Enable building restricted packages
@@ -466,6 +472,10 @@ build_packages() {
 }
 
 install_packages() {
+	if [ "$op_install" = 0 ]; then
+		msg debug "No packages installation requested"
+		return 0
+	fi
 	build_packages
 	#shellcheck disable=SC2086
 	if [ -n "$packages" ] && xi $package_list; then
