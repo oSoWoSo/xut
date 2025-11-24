@@ -311,7 +311,7 @@ update_template_list() {
 
 integrate_xtra_templates() {
 	if [ "$op_integrate" = 0 ]; then
-		msg debug "Integration of xtra templates not requested"
+		msg debug "No integration requested"
 		return 0
 	fi
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
