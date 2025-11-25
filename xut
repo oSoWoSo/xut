@@ -507,7 +507,7 @@ while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
-		h)	
+		h)
 			usage
 			root_check
 			exit 0
