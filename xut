@@ -423,10 +423,10 @@ update_packages() {
 }
 
 build_packages() {
-	if [ "$op_build" = 0 ]; then
-		msg debug "No packages build requested"
-		return 0
-	fi
+	#if [ "$op_build" = 0 ]; then
+	#	msg debug "No packages build requested"
+	#	return 0
+	#fi
 	# Prepare for installation
 
 	# Enable building restricted packages
