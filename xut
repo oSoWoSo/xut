@@ -220,11 +220,13 @@ sync_repos() {
 should_copy_template() {
 	sourceTemplate="$1"
 	destTemplate="$2"
-	sourceTemplateName=$(echo "$sourceTemplate" | awk -F '/' '{print $(NF-1)}')
-	destTemplateName=$(echo "$destTemplate" | awk -F '/' '{print $(NF-1)}')
+	sourceTemplateName=${sourceTemplate%/*}
+	sourceTemplateName=${sourceTemplateName##*/}
+	destTemplateName=${sourceTemplate%/*}
+	destTemplateName=${sourceTemplateName##*/}
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$destTemplate" ]; then
-		msg info "... $templateName"
+		msg debug "... $templateName"
 		opChanged=1
 		return 0
 	fi
@@ -276,7 +278,7 @@ merge_xtra_templates() {
 				[ ! -e "$dir/template" ] && continue
 				processed=$((processed + 1))
 				printf "\r%5d " "$processed"
-				templateName=$(basename "$dir")
+				templateName=${dir##*/}
 				sourceTemplate="$dir/template"
 				destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
 				if should_copy_template "$sourceTemplate" "$destTemplate"; then
