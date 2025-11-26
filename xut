@@ -174,12 +174,7 @@ include_additional_repos() {
 
 
 retrieve_repos() {
-	if [ "$opRetrieve" = 0 ]; then
-		msg debug "Retrieving repos not requested"
-		return
-	fi
 	# Clone every configured repo if needed.
-	msg info "Cloning repos..."
 	for repo in $reposList; do
 		find_repodir "$repo"
 		if [ ! -d "$confWorkdir"/"$repodir" ]; then
