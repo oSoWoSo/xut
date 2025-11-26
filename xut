@@ -158,12 +158,26 @@ create_template_list() {
 }
 
 extract_verrev() {
- # Extract version and revision information from template ${2}.
-awk -F= '
-	/^version=/ { gsub(/"/, "", $2); ver=$2 }
-	/^revision=/ { gsub(/"/, "", $2); rev=$2 }
-	 END { printf "%s_%s", ver, rev }
-	' "$1"
+ # Extract version and revision information from template ${1}.
+    ver=''
+    rev=''
+
+    while IFS= read -r line; do
+        case "$line" in
+            version=*)
+                ver=${line#version=}       # strip "version="
+                ver=${ver#\"}              # strip leading quote if present
+                ver=${ver%\"}              # strip trailing quote if present
+                ;;
+            revision=*)
+                rev=${line#revision=}      # strip "revision="
+                rev=${rev#\"}
+                rev=${rev%\"}
+                ;;
+        esac
+    done < "$1"
+
+    printf "%s_%s" "$ver" "$rev"
 }
 
 include_additional_repos() {
@@ -273,9 +287,9 @@ merge_xtra_templates() {
 			create_template_list "$searchPath" "$confWorkdir/templates_$repoName"
 			processed=0
 			# Process templates
-			for dir in "$searchPath"/*; do
-				[ ! -d "$dir" ] && [ ! -L "$dir" ] && continue
-				[ ! -e "$dir/template" ] && continue
+			for template in "$searchPath"/*/template; do
+				[ -f "$template" ] || continue
+    			dir=${template%/template}
 				processed=$((processed + 1))
 				printf "\r%5d " "$processed"
 				templateName=${dir##*/}
@@ -313,9 +327,9 @@ update_template_list() {
 	rm -f "$confWorkdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
-	templates in void-packages: $(cat "$confWorkdir"/void_templates | wc -w)
-	xtraTemplates: $(cat "$confWorkdir"/xtraTemplates | wc -w) (Not unique)
-	Available templates: ${green}${bold}$(cat "$confWorkdir"/all_templates | wc -w)${resetColour}
+	templates in void-packages: $(wc -w < "$confWorkdir"/void_templates)
+	xtraTemplates: $(wc -w "$confWorkdir"/xtraTemplates) (Not unique)
+	Available templates: ${green}${bold}$(wc -w < "$confWorkdir"/all_templates)${resetColour}
 	"
 }
 
