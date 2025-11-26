@@ -20,25 +20,11 @@ readonly xutVersion=0.4.1-dev
 
 root_check() {
 	# Check for root
-	[ "$(id -u)" = 0 ] && msg error "Please run the program as a user!"
+	[ "$(id -u)" = 0 ] && usage && msg error "Please run the program as a user!"
 }
 
-distribution_sanity_check() {
-	# Disable install and update when run in a non-Void distribution
-	[ -r /etc/os-release ] && . /etc/os-release
-	if [ -z "$NAME" ] || [ "$NAME" != "Void" ]; then
-		opUpdate=0
-		opInstall=0
-		opForeignHost=1
-		msg info "[xut] is not running under Void Linux. Install and update operations are disabled."
-	fi
-}
-
-msg() {
-	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
-	# ${2} is the message content needs to be here, all messages depend on it.
-
-	# Colours
+set_colours() {
+# Colours
 	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then # make tput(1) optional, respect $NO_COLOR
 		green=$(tput setaf 2)
 		red=$(tput setaf 1)
@@ -54,6 +40,37 @@ msg() {
 		bold=""
 		resetColour=""
 	fi
+}
+
+set_default_vars() {
+opLog=0       #Controls the appearance of debug messages for the user (-l)
+opQuery=0     #Search for templates (-q)
+opBuild=0     #Build packages, ( -b).
+opInstall=0   #Install packages (-i <package1,package2>)
+opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
+opUpdate=0    #Update sw from updated templates (-u)
+opChanged=0   #Indicated that the repo contents have changed, for internal use
+opRetrieve=0  #Clone repos repos (-s)
+opSync=0      #Sync repos
+opIntegrate=0 #Intergrate all templates into a merged repo.
+opForeignHost=0	#Detection of non-Voidlinux host system.
+}
+
+distribution_sanity_check() {
+	# Disable install and update when run in a non-Void distribution
+	[ -r /etc/os-release ] && . /etc/os-release
+	if [ -z "$NAME" ] || [ "$NAME" != "Void" ]; then
+		opUpdate=0
+		opInstall=0
+		opForeignHost=1
+		msg info "[xut] is not running under Void Linux. Install and update operations are disabled."
+	fi
+}
+
+
+msg() {
+	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
+	# ${2} is the message content needs to be here, all messages depend on it.
 
 	if [ "${1}" = "error" ]; then
 		printf "%s\n" "${red}${bold}(!!) Error:${resetColour} ${bold}${2}${resetColour}" && exit 1
@@ -62,12 +79,13 @@ msg() {
 	elif [ "${1}" = "info" ]; then
 		printf "%s\n" "${green}${bold}(~>) Info:${resetColour}  ${bold}${2} ${resetColour}"
 	elif [ "${1}" = "debug" ]; then
-		[ "$opLog" = 1 ] && printf "%s\n" "$fade(<>) Debug : ${2} ${resetColour}"
+		[ "$opLog" = 1 ] && printf "%s\n" "${fade}(<>) Debug : ${2} ${resetColour}"
 	else
 		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${resetColour}" && exit 1
 	fi
 }
 
+set_default_configuration() {
 # Get the configuration from the conf file if it exists.
 
 #shellcheck disable=SC1091
@@ -99,19 +117,7 @@ logFile="$confLogDir/$(basename "$0")_$(date +"%Y%m%d_%H%M%S").log"
 readonly logFile
 mergedDir=$(mktemp -d "${TMPDIR:-/tmp}/xutXXXX.merged")
 trap 'rm -rf "$mergedDir"' EXIT INT TERM
-
-# Set default operation variables
-opLog=0       #Controls the appearance of debug messages for the user (-l)
-opQuery=0     #Search for templates (-q)
-opBuild=0     #Build packages, ( -b).
-opInstall=0   #Install packages (-i <package1,package2>)
-opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
-opUpdate=0    #Update sw from updated templates (-u)
-opChanged=0   #Indicated that the repo contents have changed, for internal use
-opRetrieve=0  #Clone repos repos (-s)
-opSync=0      #Sync repos
-opIntegrate=0 #Intergrate all templates into a merged repo.
-opForeignHost=0	#Detection of non-Voidlinux host system.
+}
 
 usage() {
 	# Display basic tui information
@@ -474,7 +480,6 @@ install_packages() {
 }
 
 main() {
-	root_check
 	msg info "Full command given is [${green}xut $showargs${resetColour}]."
 	distribution_sanity_check
 	[ -n "$opXbpsSrc" ] && xbps_src_command
@@ -490,8 +495,17 @@ main() {
 	install_packages
 }
 
+set_colours
+root_check
+set_default_vars
+set_default_configuration
+
+
 # Keep at least 5 log files, including the current one.
 find "$confLogDir" -name "xut_*.log" -print | sort -r | awk 'NR>5' | xargs rm -f
+
+
+
 
 while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
@@ -499,7 +513,6 @@ while getopts "slhub:i:x:q:" OPTION; do
 		l) opLog=1 ;;
 		h)	
 			usage
-			root_check
 			exit 0
 			;;
 		b) packages="$OPTARG" && opBuild=1 ;;
@@ -509,7 +522,6 @@ while getopts "slhub:i:x:q:" OPTION; do
 		u) opUpdate=1 ;;
 		*)
 			usage
-			root_check
 			exit 0
 			;;
 	esac
@@ -520,7 +532,7 @@ showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
 [ "$OPTIND" = 1 ] && usage && root_check && exit
 if [ "$opLog" = 1 ]; then
-	main "$@" 2>&1 | tee -- "$logFile"
+	main 2>&1 | tee -- "$logFile"
 else
-	main "$@"
+	main
 fi
