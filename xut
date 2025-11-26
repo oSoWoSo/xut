@@ -50,7 +50,6 @@ opInstall=0   #Install packages (-i <package1,package2>)
 opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
 opUpdate=0    #Update sw from updated templates (-u)
 opChanged=0   #Indicated that the repo contents have changed, for internal use
-opRetrieve=0  #Clone repos repos (-s)
 opSync=0      #Sync repos
 opIntegrate=0 #Intergrate all templates into a merged repo.
 opForeignHost=0	#Detection of non-Voidlinux host system.
@@ -182,11 +181,12 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	for repo in $reposList; do
 		find_repodir "$repo"
-		if [ ! -d "$confWorkdir"/"$repodir" ]; then
+		if [ ! -d "$confWorkdir"/"$repodir"/.git ]; then
 			opChanged=1
 			msg debug "Cloning $repo..."
 			git clone --depth 1 "$repo" "$confWorkdir"/"$repodir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
+			opIntegrate=1
 		else
 			msg debug "$repo already exists in $repodir !"
 		fi
@@ -194,7 +194,6 @@ retrieve_repos() {
 
 	# Remove all non-upstream repo from the void-packages clone to start from scratch
 	cd "$confWorkdir"/"$defaultRepoDir" && git checkout .
-	opSync=1
 }
 
 sync_repos() {
@@ -299,7 +298,9 @@ merge_xtra_templates() {
 update_template_list() {
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
+	[ ! -r "$confWorkdir/templates_restricted-packages" ] && merge_xtra_templates
 	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$confWorkdir"/all_templates_source
+	
 	for list in "$confWorkdir"/templates_*; do
 		cat "$list" >>"$confWorkdir"/xtraTemplates_source
 	done
@@ -508,7 +509,7 @@ find "$confLogDir" -name "xut_*.log" -print | sort -r | awk 'NR>5' | xargs rm -f
 
 while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
-		s) opRetrieve=1 ;;
+		s) opSync=1 ;;
 		l) opLog=1 ;;
 		h)	
 			usage
