@@ -209,10 +209,9 @@ sync_repos() {
 		msg debug "Syncing $repo..."
 		cd "$confWorkdir"/"$repodir" || msg error "Cannot change to $confWorkdir/$repodir"
 		currentBranch=$(git branch --show-current 2>/dev/null)
-		if [ "$repo" = "$defaultRepo" ] && [ "$currentBranch" != "master" ]; then
-			git checkout master || msg error "Cannot switch to master branch. Probably uncommitted changes on $currentBranch?"
-			msg debug "Switched to master branch"
-		fi
+		default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
+		git checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+		msg debug "Switched to $default_branch"
 		git pull "$repo" || msg error "Cannot sync to $repo"
 		msg info "$repo synced"
 	done
