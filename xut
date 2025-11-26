@@ -444,7 +444,8 @@ update_packages() {
 	fi
 	opInstall=1
 	packages="$templatesToUpdate"
-	install_packages
+	install_packages 
+	exit 0
 }
 
 build_packages() {
