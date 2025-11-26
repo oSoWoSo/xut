@@ -64,6 +64,8 @@ distribution_sanity_check() {
 		opInstall=0
 		opForeignHost=1
 		msg info "[xut] is not running under Void Linux. Install and update operations are disabled."
+	else
+		msg debug "Running on Void linux, all systems go!"
 	fi
 }
 
