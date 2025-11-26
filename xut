@@ -324,19 +324,19 @@ update_template_list() {
 	msg debug "Creating list of templates (This will take a while)"
 	[ ! -r "$confWorkdir/templates_restricted-packages" ] && merge_xtra_templates # ensure lists exist
 	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$confWorkdir"/all_templates_source
-	: > "$confWorkdir"/xtraTemplates # clean the file
+	: > "$confWorkdir"/xtra_templates # clean the file
 	for list in "$confWorkdir"/templates_*; do
-		cat "$list" >>"$confWorkdir"/xtraTemplates_source
+		cat "$list" >>"$confWorkdir"/xtra_templates_source
 	done
 	# Uniq and sort template lists
-	cat "$confWorkdir"/xtraTemplates_source | sort -u >"$confWorkdir"/xtraTemplates
-	rm -f "$confWorkdir"/xtraTemplates_source
+	cat "$confWorkdir"/xtra_templates_source | sort -u >"$confWorkdir"/xtra_templates
+	rm -f "$confWorkdir"/xtra_templates_source
 	cat "$confWorkdir"/all_templates_source | sort -u >"$confWorkdir"/all_templates
 	rm -f "$confWorkdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
 	templates in void-packages: $(wc -w < "$confWorkdir"/void_templates)
-	xtraTemplates: $(wc -w "$confWorkdir"/xtraTemplates) (Not unique)
+	xtra templates: $(wc -w < "$confWorkdir"/xtra_templates) (Not unique)
 	Available templates: ${green}${bold}$(wc -w < "$confWorkdir"/all_templates)${resetColour}
 	"
 }
@@ -417,11 +417,11 @@ discover_updates() {
 	# Compare versions of available templates to these of installed
 	# packages and create a list of packages to update.
 	msg info "Checking for updatable packages..."
-	: > "$confWorkdir"/xtraTemplates # clean the file
+	: > "$confWorkdir"/xtra_templates # clean the file
 	for list in "$confWorkdir"/templates_*; do
-		cat "$list" >>"$confWorkdir"/xtraTemplates
+		cat "$list" >>"$confWorkdir"/xtra_templates
 	done
-	xtraTemplates="$(cat "$confWorkdir"/xtraTemplates | tr "\n" " ")"
+	xtraTemplates="$(cat "$confWorkdir"/xtra_templates | tr "\n" " ")"
 	for template in $xtraTemplates; do
 		msg debug "Checking $template"
 		if xbps-query -p pkgname "$template" >/dev/null; then
