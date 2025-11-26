@@ -300,9 +300,9 @@ merge_xtra_templates() {
 update_template_list() {
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
-	[ ! -r "$confWorkdir/templates_restricted-packages" ] && merge_xtra_templates
+	[ ! -r "$confWorkdir/templates_restricted-packages" ] && merge_xtra_templates # ensure lists exist
 	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$confWorkdir"/all_templates_source
-	
+	: > "$confWorkdir"/xtraTemplates # clean the file
 	for list in "$confWorkdir"/templates_*; do
 		cat "$list" >>"$confWorkdir"/xtraTemplates_source
 	done
@@ -395,6 +395,7 @@ discover_updates() {
 	# Compare versions of available templates to these of installed
 	# packages and create a list of packages to update.
 	msg info "Checking for updatable packages..."
+	: > "$confWorkdir"/xtraTemplates # clean the file
 	for list in "$confWorkdir"/templates_*; do
 		cat "$list" >>"$confWorkdir"/xtraTemplates
 	done
