@@ -151,10 +151,13 @@ find_repodir() {
 }
 
 create_template_list() {
+	# Creates a newline-seperated list of template directory names that exitst under
+	# ${2} and stores it in ${2}
    find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' > "$2"
 }
 
 extract_verrev() {
+ # Extract version and revision information from template ${2}.
 awk -F= '
 	/^version=/ { gsub(/"/, "", $2); ver=$2 }
 	/^revision=/ { gsub(/"/, "", $2); rev=$2 }
@@ -313,12 +316,12 @@ update_template_list() {
 }
 
 integrate_xtra_templates() {
+	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
 	if [ "$opIntegrate" = 0 ]; then
 		msg debug "Integration of xtra templates not requested"
 		return
 	fi
-	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
-	merge_xtra_templates
+		merge_xtra_templates
 	# Check if mergedDir has any content
 	if [ -n "$(ls -A "$mergedDir" 2>/dev/null)" ]; then
 		# Remove original directories from void-packages to avoid stale patches
