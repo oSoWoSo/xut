@@ -154,6 +154,7 @@ find_repodir() {
 create_template_list() {
 	# Creates a newline-seperated list of template directory names that exitst under
 	# ${2} and stores it in ${2}
+	msg debug "Creating template list for ${1} in ${2}..."
    find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' > "$2"
 }
 
