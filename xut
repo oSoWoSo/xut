@@ -111,7 +111,7 @@ readonly defaultRepoDir
 
 # Define a log filename
 confLogDir="$confWorkdir/logs"
-logFile="$confLogDir/$(basename "$0")_$(date +"%Y%m%d_%H%M%S").log"
+logFile="$confLogDir/${0##*/}_$(date +"%Y%m%d_%H%M%S").log"
 
 # Check for needed dirs.
 [ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
@@ -124,7 +124,7 @@ usage() {
 	# Display basic tui information
 	cat <<-EOH
 		xut $xutVersion
-		Usage: $(basename "$0") [options]
+		Usage: ${0##*/} [options]
 
 		*x*tra *u*ser *t*emplates
 		Build and install packages for Void Linux, from the abyss-packages unofficial repo
@@ -153,7 +153,7 @@ find_repodir() {
 
 create_template_list() {
 	# Creates a newline-seperated list of template directory names that exitst under
-	# ${2} and stores it in ${2}
+	# ${1} and stores it in ${2}
 	msg debug "Creating template list for ${1} in ${2}..."
     dir="$1"
     out="$2"
@@ -289,7 +289,7 @@ merge_xtra_templates() {
 			fi
 			msg debug "Searching in $searchPath"
 			# Create xtra repo templates list
-			repoName=$(basename "$repo")
+			repoName=${repo##*/}
 			# Include both directories and symlinks
 			# Show progress during template processing
 			create_template_list "$searchPath" "$confWorkdir/templates_$repoName"
@@ -311,7 +311,7 @@ merge_xtra_templates() {
 			done
 			printf "\n"
 		else
-			# Include both directories and symlinks for void_templates
+			# create template list for $defaultRepo
 			create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs" "$confWorkdir"/void_templates
 		fi
 	done
@@ -352,8 +352,8 @@ integrate_xtra_templates() {
 	if [ -n "$(ls -A "$mergedDir" 2>/dev/null)" ]; then
 		# Remove original directories from void-packages to avoid stale patches
 		msg debug "Cleaning older package directories from void-packages"
-		for merged_pkg in "$mergedDir"/*; do
-			pkgName=$(basename "$merged_pkg")
+		for mergedPkg in "$mergedDir"/*; do
+			pkgName=${mergedPkg##*/}
 			originalPkg="$confWorkdir/$defaultRepoDir/srcpkgs/$pkgName"
 			if [ -d "$originalPkg" ]; then
 				msg debug "Removing old package directory: $pkgName"
@@ -396,7 +396,7 @@ search_templates() {
 		[ ! -f "$file" ] && continue
 		if grep -q "$templateQuery" "$file"; then
 			found=1
-			fileName=$(basename "$file")
+			fileName="${file##*/}"
 			case "$fileName" in
 				templates_*) fileName=$(echo "$fileName" | cut -d'_' -f2) ;;
 				void_templates) fileName="void-packages" ;;
@@ -556,7 +556,7 @@ done
 # Capture all the arguments given
 showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
-[ "$OPTIND" = 1 ] && usage && root_check && exit
+[ "$OPTIND" = 1 ] && usage && exit
 if [ "$opLog" = 1 ]; then
 	main 2>&1 | tee -- "$logFile"
 else
