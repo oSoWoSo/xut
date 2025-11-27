@@ -244,8 +244,8 @@ should_copy_template() {
 	destTemplate="$2"
 	sourceTemplateName=${sourceTemplate%/*}
 	sourceTemplateName=${sourceTemplateName##*/}
-	destTemplateName=${sourceTemplate%/*}
-	destTemplateName=${sourceTemplateName##*/}
+	destTemplateName=${destTemplate%/*}
+	destTemplateName=${destTemplateName##*/}
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$destTemplate" ]; then
 		msg debug "... $templateName"
