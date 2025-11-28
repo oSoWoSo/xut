@@ -4,6 +4,10 @@ jobs:
     runs-on: codeberg-medium
     container:
       image: ghcr.io/void-linux/void-glibc-full
+      env:
+        TERM: xterm-256color
+        FORCE_COLOR: 1
+        CLICOLOR_FORCE: 1
     steps:
       - name: Install dependencies as root
         run: |
@@ -20,7 +24,9 @@ jobs:
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
           shfmt -p xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
           shellcheck -S error xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
           ./xut -h
