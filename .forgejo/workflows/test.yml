@@ -9,7 +9,7 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y nodejs bash dialog git gum ncurses shadow sudo
+          xbps-install -y nodejs bash dialog git gum ncurses shellcheck shfmt shadow sudo
           useradd -m -u 1000 -s /bin/bash runner
           echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           
@@ -20,6 +20,8 @@ jobs:
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           chmod +x xut
+          shfmt -p xut
+          shellcheck -S error xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
           ./xut -h
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
