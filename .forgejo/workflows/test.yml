@@ -18,7 +18,10 @@ jobs:
           echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           
       - uses: actions/checkout@v4
-      
+
+      - name: Fix permissions
+        run: chown -R runner:runner .
+
       - name: shfmt check
         id: shfmt_check
         continue-on-error: true
