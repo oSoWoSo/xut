@@ -13,7 +13,7 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y nodejs bash dialog git gum make ncurses shellcheck shfmt shadow sudo #xtools
+          xbps-install -y nodejs bash dialog git gum make ncurses shellcheck shfmt shadow sudo xtools
           useradd -m -u 1000 -s /bin/bash runner
           echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           
@@ -26,67 +26,68 @@ jobs:
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
-          shfmt -p -s xut || exit 1
+          shfmt -p -d --apply-ignore -ci xut
           EOF
 
       - name: shellcheck
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
-          shellcheck -S error xut || exit 2
+          shellcheck -S error xut
           EOF
 
       - name: ./xut help
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
-          ./xut -h || exit 3
+          ./xut -h
           EOF
 
       - name: ./xut sync
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
-          ./xut -sl || exit 4
+          ./xut -sl
           EOF
 
       - name: ./xut update
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -u"
-          ./xut -u || exit 4
+          ./xut -u
           EOF
 
       - name: ./xut search
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -q bash"
-          ./xut -q bash || exit 5
+          ./xut -q bash
           EOF
 
       - name: make install
@@ -94,40 +95,41 @@ jobs:
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "install"
-          make install || exit 6
+          make install
 
       - name: xut help
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
-          xut -h || exit 7
+          xut -h
           EOF
 
       - name: xut build
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -b gum"
-          xut -b gum || exit 8
+          xut -b gum
           EOF
 
       - name: xut install
         run: |
-          chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
+          set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -i vsv"
-          xut -i vsv || exit 9
+          xut -i vsv
           EOF
 
 
