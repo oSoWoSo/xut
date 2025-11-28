@@ -20,7 +20,12 @@ jobs:
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           chmod +x xut
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
           ./xut -h
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
           ./xut -sl
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -u"
           ./xut -u
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -q bash"
+          ./xut -q bash
           EOF
