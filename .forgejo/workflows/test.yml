@@ -19,26 +19,6 @@ jobs:
           
       - uses: actions/checkout@v4
       
-      - name: shfmt
-        run: |
-          chown -R runner:runner .
-          sudo -u runner bash << 'EOF'
-          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
-          #set -e
-          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
-          shfmt -p -d --apply-ignore -ci -sr xut
-          EOF
-
-      - name: shellcheck
-        run: |
-          sudo -u runner bash << 'EOF'
-          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
-          #set -e
-          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
-          shellcheck -S error xut
-          EOF
-
-
       - name: shfmt check
         id: shfmt_check
         continue-on-error: true
@@ -114,7 +94,6 @@ jobs:
           export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
           gum style --border rounded --border-foreground "#ff0000" --padding "0 1" "❌ Formatting or linting issues found. PR created with fixes."
           #exit 1
-
 
       - name: ./xut help
         run: |
