@@ -3,7 +3,7 @@ jobs:
   test:
     runs-on: codeberg-medium
     container:
-      image: voidlinux/voidlinux:latest
+      image: ghcr.io/void-linux/void-glibc-full
     steps:
       - name: Install dependencies as root
         run: |
