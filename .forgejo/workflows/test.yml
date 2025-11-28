@@ -13,7 +13,7 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y nodejs bash dialog git gum ncurses shellcheck shfmt shadow sudo
+          xbps-install -y nodejs bash dialog git gum make ncurses shellcheck shfmt shadow sudo
           useradd -m -u 1000 -s /bin/bash runner
           echo "runner ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           
