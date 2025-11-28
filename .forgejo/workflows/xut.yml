@@ -12,13 +12,11 @@ jobs:
       # - run: apt-get update && apt-get --yes install bash dialog gum nodejs sudo
       - run: |
           xbps-install -Syu xbps && xbps-install -yu && xbps-install -Sy bash dialog git gum nodejs sudo
-          useradd -G xbuilder -M builder
 
       - uses: actions/checkout@v4
  
       - run: |
-          # useradd -m -s /bin/bash me
-          # chown -R me:me .
+          useradd -G xbuilder -M builder
           # Running as user
           ls
           chmod +x xut
