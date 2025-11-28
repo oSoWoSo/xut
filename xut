@@ -24,8 +24,8 @@ root_check() {
 }
 
 set_colours() {
-# Colours
-	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then # make tput(1) optional, respect $NO_COLOR
+	# Colours
+	if command -v tput > /dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then # make tput(1) optional, respect $NO_COLOR
 		green=$(tput setaf 2)
 		red=$(tput setaf 1)
 		yellow=$(tput setaf 3)
@@ -43,16 +43,16 @@ set_colours() {
 }
 
 set_default_vars() {
-opLog=0       #Controls the appearance of debug messages for the user (-l)
-opQuery=0     #Search for templates (-q)
-opBuild=0     #Build packages, ( -b).
-opInstall=0   #Install packages (-i <package1,package2>)
-opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
-opUpdate=0    #Update sw from updated templates (-u)
-opChanged=0   #Indicated that the repo contents have changed, for internal use
-opSync=0      #Sync repos
-opIntegrate=0 #Intergrate all templates into a merged repo.
-opForeignHost=0	#Detection of non-Voidlinux host system.
+	opLog=0         #Controls the appearance of debug messages for the user (-l)
+	opQuery=0       #Search for templates (-q)
+	opBuild=0       #Build packages, ( -b).
+	opInstall=0     #Install packages (-i <package1,package2>)
+	opXbpsSrc=""    #Contains the xbps-src command to be given after the -x argument
+	opUpdate=0      #Update sw from updated templates (-u)
+	opChanged=0     #Indicated that the repo contents have changed, for internal use
+	opSync=0        #Sync repos
+	opIntegrate=0   #Intergrate all templates into a merged repo.
+	opForeignHost=0 #Detection of non-Voidlinux host system.
 }
 
 distribution_sanity_check() {
@@ -67,7 +67,6 @@ distribution_sanity_check() {
 		msg debug "Running on Void linux, all systems go!"
 	fi
 }
-
 
 msg() {
 	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
@@ -87,42 +86,42 @@ msg() {
 }
 
 set_default_configuration() {
-# Get the configuration from the conf file if it exists.
+	# Get the configuration from the conf file if it exists.
 
-#shellcheck disable=SC1091
-if [ -r "$HOME"/xutconf ]; then
-	. "$HOME"/xutconf
-	msg info "Using configuration from $HOME/xutconf."
-elif [ -r "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf ]; then
-	. "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf
-	msg info "Using configuration from ${XDG_CONFIG_HOME:-$HOME/.config}/xutconf."
-else
-	msg info "Using the default configuration."
-fi
+	#shellcheck disable=SC1091
+	if [ -r "$HOME"/xutconf ]; then
+		. "$HOME"/xutconf
+		msg info "Using configuration from $HOME/xutconf."
+	elif [ -r "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf ]; then
+		. "${XDG_CONFIG_HOME:-$HOME/.config}"/xutconf
+		msg info "Using configuration from ${XDG_CONFIG_HOME:-$HOME/.config}/xutconf."
+	else
+		msg info "Using the default configuration."
+	fi
 
-# Setting default configuration
+	# Setting default configuration
 
-readonly defaultRepo=https://github.com/void-linux/void-packages
-readonly repoAbyssPackages=https://codeberg.org/mobinmob/abyss-packages
-defaultRepoDir=$(printf '%s' "$defaultRepo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
-readonly defaultRepoDir
-[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
-[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
+	readonly defaultRepo=https://github.com/void-linux/void-packages
+	readonly repoAbyssPackages=https://codeberg.org/mobinmob/abyss-packages
+	defaultRepoDir=$(printf '%s' "$defaultRepo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
+	readonly defaultRepoDir
+	[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
+	[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
 
-# Define a log filename
-confLogDir="$confWorkdir/logs"
-logFile="$confLogDir/${0##*/}_$(date +"%Y%m%d_%H%M%S").log"
+	# Define a log filename
+	confLogDir="$confWorkdir/logs"
+	logFile="$confLogDir/${0##*/}_$(date +"%Y%m%d_%H%M%S").log"
 
-# Check for needed dirs.
-[ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
-readonly logFile
-mergedDir=$(mktemp -d "${TMPDIR:-/tmp}/xutXXXX.merged")
-trap 'rm -rf "$mergedDir"' EXIT INT TERM
+	# Check for needed dirs.
+	[ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
+	readonly logFile
+	mergedDir=$(mktemp -d "${TMPDIR:-/tmp}/xutXXXX.merged")
+	trap 'rm -rf "$mergedDir"' EXIT INT TERM
 }
 
 usage() {
 	# Display basic tui information
-	cat <<-EOH
+	cat <<- EOH
 		xut $xutVersion
 		Usage: ${0##*/} [options]
 
@@ -155,37 +154,37 @@ create_template_list() {
 	# Creates a newline-seperated list of template directory names that exitst under
 	# ${1} and stores it in ${2}
 	msg debug "Creating template list for ${1} in ${2}..."
-    dir="$1"
-    out="$2"
-    : > "$out"  # empty file
+	dir="$1"
+	out="$2"
+	: > "$out" # empty file
 
-    for d in "$dir"/*; do
-        [ -d "$d" ] || continue
-        printf "%s\n" "${d##*/}" >> "$out"
-    done
+	for d in "$dir"/*; do
+		[ -d "$d" ] || continue
+		printf "%s\n" "${d##*/}" >> "$out"
+	done
 }
 
 extract_verrev() {
- # Extract version and revision information from template ${1}.
-    ver=''
-    rev=''
+	# Extract version and revision information from template ${1}.
+	ver=''
+	rev=''
 
-    while IFS= read -r line; do
-        case "$line" in
-            version=*)
-                ver=${line#version=}       # strip "version="
-                ver=${ver#\"}              # strip leading quote if present
-                ver=${ver%\"}              # strip trailing quote if present
-                ;;
-            revision=*)
-                rev=${line#revision=}      # strip "revision="
-                rev=${rev#\"}
-                rev=${rev%\"}
-                ;;
-        esac
-    done < "$1"
+	while IFS= read -r line; do
+		case "$line" in
+			version=*)
+				ver=${line#version=} # strip "version="
+				ver=${ver#\"}        # strip leading quote if present
+				ver=${ver%\"}        # strip trailing quote if present
+				;;
+			revision=*)
+				rev=${line#revision=} # strip "revision="
+				rev=${rev#\"}
+				rev=${rev%\"}
+				;;
+		esac
+	done < "$1"
 
-    printf "%s_%s" "$ver" "$rev"
+	printf "%s_%s" "$ver" "$rev"
 }
 
 include_additional_repos() {
@@ -197,7 +196,6 @@ include_additional_repos() {
 	done
 	reposList="$reposList $repoAbyssPackages"
 }
-
 
 retrieve_repos() {
 	# Clone every configured repo if needed.
@@ -229,7 +227,7 @@ sync_repos() {
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
 		cd "$confWorkdir"/"$repodir" || msg error "Cannot change to $confWorkdir/$repodir"
-		currentBranch=$(git branch --show-current 2>/dev/null)
+		currentBranch=$(git branch --show-current 2> /dev/null)
 		default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
 		git checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
 		msg debug "Switched to $default_branch"
@@ -274,8 +272,8 @@ merge_xtra_templates() {
 		rm -f "$confWorkdir"/templates_*
 		rm -f "$confWorkdir"/*_templates
 	else
-		rm -v "$confWorkdir"/templates_* 2>/dev/null
-		rm -v "$confWorkdir"/*_templates 2>/dev/null
+		rm -v "$confWorkdir"/templates_* 2> /dev/null
+		rm -v "$confWorkdir"/*_templates 2> /dev/null
 	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
@@ -297,7 +295,7 @@ merge_xtra_templates() {
 			# Process templates
 			for template in "$searchPath"/*/template; do
 				[ -f "$template" ] || continue
-    			dir=${template%/template}
+				dir=${template%/template}
 				processed=$((processed + 1))
 				printf "\r%5d " "$processed"
 				templateName=${dir##*/}
@@ -316,7 +314,7 @@ merge_xtra_templates() {
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
-	grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$confWorkdir/templates_restricted-packages"
+	grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' > "$confWorkdir/templates_restricted-packages"
 }
 
 update_template_list() {
@@ -326,12 +324,12 @@ update_template_list() {
 	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$confWorkdir"/all_templates_source
 	: > "$confWorkdir"/xtra_templates # clean the file
 	for list in "$confWorkdir"/templates_*; do
-		cat "$list" >>"$confWorkdir"/xtra_templates_source
+		cat "$list" >> "$confWorkdir"/xtra_templates_source
 	done
 	# Uniq and sort template lists
-	cat "$confWorkdir"/xtra_templates_source | sort -u >"$confWorkdir"/xtra_templates
+	cat "$confWorkdir"/xtra_templates_source | sort -u > "$confWorkdir"/xtra_templates
 	rm -f "$confWorkdir"/xtra_templates_source
-	cat "$confWorkdir"/all_templates_source | sort -u >"$confWorkdir"/all_templates
+	cat "$confWorkdir"/all_templates_source | sort -u > "$confWorkdir"/all_templates
 	rm -f "$confWorkdir"/all_templates_source
 	msg debug "Template merge completed."
 	msg info "
@@ -347,9 +345,9 @@ integrate_xtra_templates() {
 		msg debug "Integration of xtra templates not requested"
 		return
 	fi
-		merge_xtra_templates
+	merge_xtra_templates
 	# Check if mergedDir has any content
-	if [ -n "$(ls -A "$mergedDir" 2>/dev/null)" ]; then
+	if [ -n "$(ls -A "$mergedDir" 2> /dev/null)" ]; then
 		# Remove original directories from void-packages to avoid stale patches
 		msg debug "Cleaning older package directories from void-packages"
 		for mergedPkg in "$mergedDir"/*; do
@@ -419,12 +417,12 @@ discover_updates() {
 	msg info "Checking for updatable packages..."
 	: > "$confWorkdir"/xtra_templates # clean the file
 	for list in "$confWorkdir"/templates_*; do
-		cat "$list" >>"$confWorkdir"/xtra_templates
+		cat "$list" >> "$confWorkdir"/xtra_templates
 	done
 	xtraTemplates="$(cat "$confWorkdir"/xtra_templates | tr "\n" " ")"
 	for template in $xtraTemplates; do
 		msg debug "Checking $template"
-		if xbps-query -p pkgname "$template" >/dev/null; then
+		if xbps-query -p pkgname "$template" > /dev/null; then
 			templatesToCheck="$templatesToCheck $template"
 		fi
 	done
@@ -439,9 +437,10 @@ discover_updates() {
 
 update_packages() {
 	# Build and install available updates.
-	if [ "$opUpdate" = 0 ]; then 
+	if [ "$opUpdate" = 0 ]; then
 		msg debug "No update requested"
-		return; fi
+		return
+	fi
 	discover_updates
 	if [ -n "$templatesToUpdate" ]; then
 		msg info "Updating $templatesToUpdate ..."
@@ -451,14 +450,15 @@ update_packages() {
 	fi
 	opInstall=1
 	packages="$templatesToUpdate"
-	install_packages 
+	install_packages
 	exit 0
 }
 
 build_packages() {
 	if [ "$opBuild" = 0 ]; then
-		msg debug "No package build requested" 
-		return; fi
+		msg debug "No package build requested"
+		return
+	fi
 	# Prepare for installation
 
 	# Enable building restricted packages
@@ -466,7 +466,7 @@ build_packages() {
 		msg debug "Building restricted packages is enabled!"
 	else
 		msg info "Enable building restricted packages!"
-		printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >>"$confWorkdir"/"$defaultRepoDir"/etc/conf
+		printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >> "$confWorkdir"/"$defaultRepoDir"/etc/conf
 	fi
 
 	# Bootstrap if masterdir is not populated
@@ -488,16 +488,17 @@ build_packages() {
 	if [ -n "$packages" ] && [ "$opInstall" = 0 ]; then
 		msg info "Successfully build $packages!"
 		msg info "Packages are in $confWorkdir/$defaultRepoDir/hostdir/."
-		[ "$opForeignHost" != 1 ] \
-			&& msg info "You can install them with xbps or by running <xut -i>."
+		[ "$opForeignHost" != 1 ] &&
+			msg info "You can install them with xbps or by running <xut -i>."
 		exit 0
 	fi
 }
 
 install_packages() {
-	if [ "$opInstall" = 0 ]; then 
+	if [ "$opInstall" = 0 ]; then
 		msg debug "No package installation requested"
-		return ; fi
+		return
+	fi
 	opBuild=1 && build_packages
 	#shellcheck disable=SC2086
 	if [ -n "$packages" ] && xi $packageList; then
@@ -526,18 +527,14 @@ root_check
 set_default_vars
 set_default_configuration
 
-
 # Keep at least 5 log files, including the current one.
 find "$confLogDir" -name "xut_*.log" -print | sort -r | awk 'NR>5' | xargs rm -f
-
-
-
 
 while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) opSync=1 ;;
 		l) opLog=1 ;;
-		h)	
+		h)
 			usage
 			exit 0
 			;;
