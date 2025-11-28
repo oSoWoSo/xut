@@ -54,17 +54,16 @@ jobs:
       - name: Create PR with fixes
         if: steps.shfmt_check.outcome == 'failure' || steps.shellcheck_check.outcome == 'failure'
         run: |
-          export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
-          if ! git diff --quiet; then
+          git config --global user.name "Forgejo Bot"
+          git config --global user.email "bot@forgejo.local"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          
+          if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
             BRANCH_NAME="auto-fix-$(date +%s)"
-            
-            git config --global user.name "Forgejo Bot"
-            git config --global user.email "bot@forgejo.local"
-            git config --global --add safe.directory "$GITHUB_WORKSPACE"
             
             git checkout -b "$BRANCH_NAME"
             git add -A
-            
+
             COMMIT_MSG="🤖 Auto-fix: Code formatting and linting"
             if [ "${{ steps.shfmt_check.outcome }}" == "failure" ]; then
               COMMIT_MSG="$COMMIT_MSG\n\n- Applied shfmt formatting"
@@ -76,19 +75,21 @@ jobs:
             git commit -m "$COMMIT_MSG"
             git push origin "$BRANCH_NAME"
             
-            # Create PR via Forgejo API
+            # Create PR via Codeberg/Forgejo API
             curl -X POST \
               -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
               -H "Content-Type: application/json" \
-              "https://your-forgejo-instance/api/v1/repos/${{ github.repository }}/pulls" \
+              "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls" \
               -d "{
-                \"title\": \"🤖 Auto-fix: Code formatting and linting\",
-                \"body\": \"This PR was automatically created by CI to fix formatting and linting issues.\\n\\nFixed issues:\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\\n\\nBranch: $BRANCH_NAME\",
+                \"title\": \"🤖 Auto-fix: Code formatting\",
+                \"body\": \"This PR was automatically created by CI to fix formatting issues.\\n\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\",
                 \"head\": \"$BRANCH_NAME\",
                 \"base\": \"${{ github.ref_name }}\"
               }"
             
             gum style --border rounded --border-foreground "#ff9900" --padding "0 1" "⚠️ Created PR with fixes: $BRANCH_NAME"
+          else
+            gum style --border rounded --border-foreground "#00ff00" --padding "0 1" "✓ No changes to commit"
           fi
 
       - name: Fail if checks failed
