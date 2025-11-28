@@ -23,6 +23,9 @@ jobs:
         run: |
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
           chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
           shfmt -p xut
