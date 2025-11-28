@@ -17,6 +17,7 @@ jobs:
  
       - run: |
           useradd -G xbuilder -M builder
+          chown -R builder:builder .
           # Running as user
           ls
           chmod +x xut
