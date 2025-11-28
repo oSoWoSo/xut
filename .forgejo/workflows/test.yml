@@ -24,7 +24,7 @@ jobs:
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
-          set -e
+          #set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
           shfmt -p -d --apply-ignore -ci -sr xut
           EOF
@@ -33,7 +33,7 @@ jobs:
         run: |
           sudo -u runner bash << 'EOF'
           export TERM=xterm-256color FORCE_COLOR=1 CLICOLOR_FORCE=1
-          set -e
+          #set -e
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
           shellcheck -S error xut
           EOF
