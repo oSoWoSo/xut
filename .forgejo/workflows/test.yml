@@ -19,7 +19,29 @@ jobs:
           
       - uses: actions/checkout@v4
       
-      - name: Fix permissions and run as runner
+      - name: shfmt
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
+          shfmt -p -s xut
+          EOF
+
+      - name: shellcheck
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
+          shellcheck -S error xut
+          EOF
+
+      - name: ./xut help
         run: |
           chown -R runner:runner .
           sudo -u runner bash << 'EOF'
@@ -27,16 +49,86 @@ jobs:
           export FORCE_COLOR=1
           export CLICOLOR_FORCE=1
           chmod +x xut
-          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shfmt -p xut"
-          shfmt -p xut
-          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "shellcheck -S error xut"
-          shellcheck -S error xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
           ./xut -h
+          EOF
+
+      - name: ./xut sync
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -sl"
           ./xut -sl
+          EOF
+
+      - name: ./xut update
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -u"
           ./xut -u
+          EOF
+
+      - name: ./xut search
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          chmod +x xut
           gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -q bash"
           ./xut -q bash
           EOF
+
+      - name: make install
+        run: |
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "install"
+          make install
+          EOF
+
+      - name: xut help
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -h"
+          xut -h
+          EOF
+
+      - name: xut build
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -b gum"
+          xut -b gum
+          EOF
+
+      - name: xut install
+        run: |
+          chown -R runner:runner .
+          sudo -u runner bash << 'EOF'
+          export TERM=xterm-256color
+          export FORCE_COLOR=1
+          export CLICOLOR_FORCE=1
+          gum style --border rounded --border-foreground "#14a113" --padding "0 1" "xut -i vsv"
+          xut -i vsv
+          EOF
+
+
