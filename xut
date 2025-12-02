@@ -53,6 +53,12 @@ opChanged=0   #Indicated that the repo contents have changed, for internal use
 opSync=0      #Sync repos
 opIntegrate=0 #Intergrate all templates into a merged repo.
 opForeignHost=0	#Detection of non-Voidlinux host system.
+
+# Initialise empty vars
+templatesToCheck=""
+templatesToUpdate=""
+xtraTemplates=""
+packageList=""
 }
 
 distribution_sanity_check() {
@@ -68,7 +74,6 @@ distribution_sanity_check() {
 	fi
 }
 
-
 msg() {
 	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
 	# ${2} is the message content needs to be here, all messages depend on it.
@@ -80,7 +85,7 @@ msg() {
 	elif [ "${1}" = "info" ]; then
 		printf "%s\n" "${green}${bold}(~>) Info:${resetColour}  ${bold}${2} ${resetColour}"
 	elif [ "${1}" = "debug" ]; then
-		[ "$opLog" = 1 ] && printf "%s\n" "${fade}(<>) Debug : ${2} ${resetColour}"
+		[ "$opLog" -eq 1 ] && printf "%s\n" "${fade}(<>) Debug : ${2} ${resetColour}"
 	else
 		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${resetColour}" && exit 1
 	fi
@@ -104,7 +109,7 @@ fi
 
 readonly defaultRepo=https://github.com/void-linux/void-packages
 readonly repoAbyssPackages=https://codeberg.org/mobinmob/abyss-packages
-defaultRepoDir=$(printf '%s' "$defaultRepo" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
+defaultRepoDir=$(rdlast="${defaultRepo%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
 readonly defaultRepoDir
 [ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
 [ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
@@ -117,7 +122,7 @@ logFile="$confLogDir/${0##*/}_$(date +"%Y%m%d_%H%M%S").log"
 [ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
 readonly logFile
 mergedDir=$(mktemp -d "${TMPDIR:-/tmp}/xutXXXX.merged")
-trap 'rm -rf "$mergedDir"' EXIT INT TERM
+trap 'rm -rf -- "$mergedDir"' EXIT INT TERM
 }
 
 usage() {
@@ -133,8 +138,9 @@ usage() {
 		 -s                      Sync the repos.
 		 -l                      Keep a log file under $confLogDir.
 		 -h                      Display this usage information.
+		 -d						 Enable debugging and logging output.
 		 -b <package1,package2>  Build a list of (comma-separated) packages.
-		 -i <package1,package2>  Build and install a list of (comma-seperated) packages.
+		 -i <package1,package2>  Build and install a list of (comma-separated) packages.
 		 -x                      Give xbps-src commands.
 		 -q <query>              Search for <query> in available templates.
 		 -u                      Update packages.
@@ -148,11 +154,11 @@ usage() {
 
 find_repodir() {
 	# Define a proper (no slashes...) directory name for a remote git repo
-	repodir=$(printf '%s' "${1}" | awk -F"/" '{ print "/"$(NF-1)"/"$NF }' | tr "/" "_")
+	repodir=$(rdlast="${1%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
 }
 
 create_template_list() {
-	# Creates a newline-seperated list of template directory names that exitst under
+	# Creates a newline-separated list of template directory names that exitst under
 	# ${1} and stores it in ${2}
 	msg debug "Creating template list for ${1} in ${2}..."
     dir="$1"
@@ -173,14 +179,14 @@ extract_verrev() {
     while IFS= read -r line; do
         case "$line" in
             version=*)
-                ver=${line#version=}       # strip "version="
-                ver=${ver#\"}              # strip leading quote if present
-                ver=${ver%\"}              # strip trailing quote if present
+                ver="${line#version=}"       # strip "version="
+                ver="${ver#\"}"              # strip leading quote if present
+                ver="${ver%\"}"              # strip trailing quote if present
                 ;;
             revision=*)
-                rev=${line#revision=}      # strip "revision="
-                rev=${rev#\"}
-                rev=${rev%\"}
+                rev="${line#revision=}"      # strip "revision="
+                rev="${rev#\"}"
+                rev="${rev%\"}"
                 ;;
         esac
     done < "$1"
@@ -203,10 +209,10 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	for repo in $reposList; do
 		find_repodir "$repo"
-		if [ ! -d "$confWorkdir"/"$repodir"/.git ]; then
+		if [ ! -d "$confWorkdir/$repodir"/.git ]; then
 			opChanged=1
 			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$confWorkdir"/"$repodir" || msg error "Cannot clone $repo repo."
+			git clone --depth 1 "$repo" "$confWorkdir/$repodir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
 			opIntegrate=1
 		else
@@ -215,25 +221,20 @@ retrieve_repos() {
 	done
 
 	# Remove all non-upstream repo from the void-packages clone to start from scratch
-	cd "$confWorkdir"/"$defaultRepoDir" && git checkout .
+	git -C "$confWorkdir/$defaultRepoDir" restore .
 }
 
 sync_repos() {
 	# Sync every configured repo.
-	if [ "$opSync" = 0 ]; then
-		msg debug "Syncing repos not requested"
-		return
-	fi
 	msg info "Syncing repos..."
 	for repo in $reposList; do
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
-		cd "$confWorkdir"/"$repodir" || msg error "Cannot change to $confWorkdir/$repodir"
-		currentBranch=$(git branch --show-current 2>/dev/null)
-		default_branch=$(git remote show origin | awk '/HEAD branch/ {print $NF}')
-		git checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+		currentBranch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short HEAD 2>/dev/null)
+		default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||')
+		git -C "$confWorkdir/$repodir" checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
 		msg debug "Switched to $default_branch"
-		git pull "$repo" || msg error "Cannot sync to $repo"
+		git -C "$confWorkdir/$repodir" pull "$repo" "$default_branch" || msg error "Cannot sync to $repo"
 		msg info "$repo synced"
 	done
 	opIntegrate=1
@@ -242,10 +243,10 @@ sync_repos() {
 should_copy_template() {
 	sourceTemplate="$1"
 	destTemplate="$2"
-	sourceTemplateName=${sourceTemplate%/*}
-	sourceTemplateName=${sourceTemplateName##*/}
-	destTemplateName=${destTemplate%/*}
-	destTemplateName=${destTemplateName##*/}
+	sourceTemplateName="${sourceTemplate%/*}"
+	sourceTemplateName="${sourceTemplateName##*/}"
+	destTemplateName="${destTemplate%/*}"
+	destTemplateName="${destTemplateName##*/}"
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$destTemplate" ]; then
 		msg debug "... $templateName"
@@ -270,17 +271,16 @@ should_copy_template() {
 
 merge_xtra_templates() {
 	# First remove all templates lists
-	if [ "$opLog" = 0 ]; then
-		rm -f "$confWorkdir"/templates_*
-		rm -f "$confWorkdir"/*_templates
+	if [ "$opLog" -eq 0 ]; then
+		rm -f "$confWorkdir"/templates_* "$confWorkdir"/*_templates
 	else
-		rm -v "$confWorkdir"/templates_* 2>/dev/null
-		rm -v "$confWorkdir"/*_templates 2>/dev/null
+		rm -v "$confWorkdir"/templates_* "$confWorkdir"/*_templates 2>/dev/null
 	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
 	for repo in $reposList; do
 		find_repodir "$repo"
+		repoName="${repo##*/}"
 		if [ "$repo" != "$defaultRepo" ]; then
 			msg info "Merging templates from ${green}${bold}$repo${resetColour}"
 			searchPath="$confWorkdir/$repodir"
@@ -289,18 +289,16 @@ merge_xtra_templates() {
 			fi
 			msg debug "Searching in $searchPath"
 			# Create xtra repo templates list
-			repoName=${repo##*/}
-			# Include both directories and symlinks
 			# Show progress during template processing
 			create_template_list "$searchPath" "$confWorkdir/templates_$repoName"
 			processed=0
 			# Process templates
 			for template in "$searchPath"/*/template; do
 				[ -f "$template" ] || continue
-    			dir=${template%/template}
-				processed=$((processed + 1))
+    			dir="${template%/template}"
+				processed=$((processed % 10))
 				printf "\r%5d " "$processed"
-				templateName=${dir##*/}
+				templateName="${dir##*/}"
 				sourceTemplate="$dir/template"
 				destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
 				if should_copy_template "$sourceTemplate" "$destTemplate"; then
@@ -312,7 +310,7 @@ merge_xtra_templates() {
 			printf "\n"
 		else
 			# create template list for $defaultRepo
-			create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs" "$confWorkdir"/void_templates
+			create_template_list "$confWorkdir/_void-linux_void-packages/srcpkgs" "$confWorkdir"/void_templates
 		fi
 	done
 	# Create template list for restricted packages, in order to include them in update discovery and updates.
@@ -324,16 +322,16 @@ update_template_list() {
 	msg debug "Creating list of templates (This will take a while)"
 	[ ! -r "$confWorkdir/templates_restricted-packages" ] && merge_xtra_templates # ensure lists exist
 	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$confWorkdir"/all_templates_source
-	: > "$confWorkdir"/xtra_templates # clean the file
+	: > "$confWorkdir/xtra_templates_source" 
 	for list in "$confWorkdir"/templates_*; do
-		cat "$list" >>"$confWorkdir"/xtra_templates_source
+		[ -f "$list" ] && cat "$list" >>"$confWorkdir"/xtra_templates_source
 	done
-	# Uniq and sort template lists
-	cat "$confWorkdir"/xtra_templates_source | sort -u >"$confWorkdir"/xtra_templates
-	rm -f "$confWorkdir"/xtra_templates_source
-	cat "$confWorkdir"/all_templates_source | sort -u >"$confWorkdir"/all_templates
-	rm -f "$confWorkdir"/all_templates_source
-	msg debug "Template merge completed."
+	# Sort/uniq in one step
+    sort -u "$confWorkdir/xtra_templates_source" > "$confWorkdir/xtra_templates"
+    sort -u "$confWorkdir/all_templates_source" > "$confWorkdir/all_templates"
+    # Cleanup
+    rm -f "$confWorkdir/xtra_templates_source" "$confWorkdir/all_templates_source"
+    msg debug "Template merge completed."
 	msg info "
 	templates in void-packages: $(wc -w < "$confWorkdir"/void_templates)
 	xtra templates: $(wc -w < "$confWorkdir"/xtra_templates) (Not unique)
@@ -343,17 +341,13 @@ update_template_list() {
 
 integrate_xtra_templates() {
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
-	if [ "$opIntegrate" = 0 ]; then
-		msg debug "Integration of xtra templates not requested"
-		return
-	fi
-		merge_xtra_templates
+	merge_xtra_templates
 	# Check if mergedDir has any content
 	if [ -n "$(ls -A "$mergedDir" 2>/dev/null)" ]; then
 		# Remove original directories from void-packages to avoid stale patches
 		msg debug "Cleaning older package directories from void-packages"
 		for mergedPkg in "$mergedDir"/*; do
-			pkgName=${mergedPkg##*/}
+			pkgName="${mergedPkg##*/}"
 			originalPkg="$confWorkdir/$defaultRepoDir/srcpkgs/$pkgName"
 			if [ -d "$originalPkg" ]; then
 				msg debug "Removing old package directory: $pkgName"
@@ -372,19 +366,14 @@ integrate_xtra_templates() {
 
 xbps_src_command() {
 	# Give xbps-src commands directly to the merged repository.
-	cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change directory into $defaultRepoDir"
+	cd "$confWorkdir/$defaultRepoDir" || msg error "Cannot change directory into $defaultRepoDir"
 	./xbps-src clean || msg error "Cannot execute <xbps-src clean>."
+	[ -n "$opXbpsSrc" ] || msg error "No xbps-src arguments!"
 	./xbps-src "$opXbpsSrc" || msg error "Cannot execute <xbps-src $opXbpsSrc>"
 	msg info "[./xbps-src $opXbpsSrc] executed successfully!" && exit 0
 }
 
 search_templates() {
-	# Search available templates.
-	if [ "$opQuery" = 0 ]; then
-		msg debug "No template search requested.."
-		return
-	fi
-
 	# Update template_list if not exist
 	if [ ! -f "$confWorkdir"/all_templates ]; then
 		update_template_list
@@ -439,9 +428,6 @@ discover_updates() {
 
 update_packages() {
 	# Build and install available updates.
-	if [ "$opUpdate" = 0 ]; then 
-		msg debug "No update requested"
-		return; fi
 	discover_updates
 	if [ -n "$templatesToUpdate" ]; then
 		msg info "Updating $templatesToUpdate ..."
@@ -456,9 +442,6 @@ update_packages() {
 }
 
 build_packages() {
-	if [ "$opBuild" = 0 ]; then
-		msg debug "No package build requested" 
-		return; fi
 	# Prepare for installation
 
 	# Enable building restricted packages
@@ -471,7 +454,7 @@ build_packages() {
 
 	# Bootstrap if masterdir is not populated
 	if [ ! -e "$confWorkdir"/"$defaultRepoDir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ]; then
-		cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change to $confWorkdir"/"$defaultRepoDir"
+		cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change to $confWorkdir/$defaultRepoDir"
 		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"
 	fi
 
@@ -495,9 +478,7 @@ build_packages() {
 }
 
 install_packages() {
-	if [ "$opInstall" = 0 ]; then 
-		msg debug "No package installation requested"
-		return ; fi
+	
 	opBuild=1 && build_packages
 	#shellcheck disable=SC2086
 	if [ -n "$packages" ] && xi $packageList; then
@@ -508,16 +489,15 @@ install_packages() {
 main() {
 	msg info "Full command given is [${green}xut $showargs${resetColour}]."
 	distribution_sanity_check
-	[ -n "$opXbpsSrc" ] && xbps_src_command
 	include_additional_repos
 
 	# Clone repos if needed
 	retrieve_repos
-	sync_repos
-	integrate_xtra_templates
-	update_packages
-	search_templates
-	build_packages
+	[ "$opSync" -eq 0 ] || sync_repos
+	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
+	[ "$opUpdate" -eq 0 ] || update_packages
+	[ "$opQuery" -eq 0 ] || search_templates
+	[ "$opBuild" -eq 0 ] || build_packages
 	install_packages
 }
 
@@ -528,12 +508,11 @@ set_default_configuration
 
 
 # Keep at least 5 log files, including the current one.
+#[ "$opLog" -eq 1 ] && 
 find "$confLogDir" -name "xut_*.log" -print | sort -r | awk 'NR>5' | xargs rm -f
 
 
-
-
-while getopts "slhub:i:x:q:" OPTION; do
+while getopts "slhudb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) opSync=1 ;;
 		l) opLog=1 ;;
@@ -541,9 +520,10 @@ while getopts "slhub:i:x:q:" OPTION; do
 			usage
 			exit 0
 			;;
+		d) opLog=1 && set -x ;;
 		b) packages="$OPTARG" && opBuild=1 ;;
 		i) packages="$OPTARG" && opInstall=1 ;;
-		x) opXbpsSrc="$OPTARG" ;;
+		x) opXbpsSrc="$OPTARG" && xbps_src_command ;;
 		q) templateQuery="$OPTARG" && opQuery=1 ;;
 		u) opUpdate=1 ;;
 		*)
@@ -557,7 +537,7 @@ done
 showargs="$(printf "%s" "$*")"
 shift $((OPTIND - 1))
 [ "$OPTIND" = 1 ] && usage && exit
-if [ "$opLog" = 1 ]; then
+if [ "$opLog" -eq 1 ]; then
 	main 2>&1 | tee -- "$logFile"
 else
 	main
