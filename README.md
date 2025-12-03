@@ -22,7 +22,7 @@ official repos. It clones both the void-packages and abyss-packages repository (
 2. Use the xutconf.sample if you want to modify configuration.
 3. The script depends on:
    - `sh` and the  posix userland,
-   - `xbps`,
+   - `xbps >= 0.60`,
    - `git`,
    - `mktemp`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
