@@ -26,10 +26,13 @@ official repos. It clones both the void-packages and abyss-packages repository (
    - `git`,
    - `mktemp`,
    - the `xi` tool from the _xtools_ package which requires a working `sudo` configuration,
+   (for installation/update).
    - the `tput` tool from _ncurses_ (optional).
 
-	Note that xut will run in other distributions that have sh, posix userland, git and sort -V available,
-	but installing (-i) and upgrading (-u) packages is disabled.
+	Note that xut will run in other distributions that have the above tools available,
+	but installing (-i) and upgrading (-u) packages is disabled. In this case, `xi` is
+   not needed.
+
 ### Todo
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
