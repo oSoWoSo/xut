@@ -299,6 +299,7 @@ merge_xtra_templates() {
 	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
+	
 	for repo in $reposList; do
 		find_repodir "$repo"
 		repoName="${repo##*/}"
@@ -314,10 +315,10 @@ merge_xtra_templates() {
 			create_template_list "$searchPath" "$templatesCache/templates_$repoName"
 			processed=0
 			# Process templates
-			for template in "$searchPath"/*/template; do
+			find "$searchPath" -maxdepth 2 -type f -name template | while IFS= read -r template; do
 				[ -f "$template" ] || continue
     			dir="${template%/template}"
-				processed=$((processed % 10))
+				processed=$((processed + 1))
 				printf "\r%5d " "$processed"
 				templateName="${dir##*/}"
 				sourceTemplate="$dir/template"
