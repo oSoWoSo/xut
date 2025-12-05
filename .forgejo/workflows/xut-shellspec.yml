@@ -34,6 +34,7 @@ jobs:
       - name: "Lint using shellcheck"
         id: shellcheck_check
         continue-on-error: true
+        shell: sh
         run: |
           su -c 'whoami' runner
           shellcheck -S error xut
@@ -41,12 +42,14 @@ jobs:
       - name: "Format check using shfmt"
         id: shfmt_check
         continue-on-error: true
+        shell: sh
         run: |
           su -c 'whoami' runner
           shfmt -d --apply-ignore -p -s -ci -kp xut
 
       - name: Apply shfmt fixes if needed
         if: steps.shfmt_check.outcome == 'failure'
+        shell: sh
         run: |
           su -c 'whoami' runner
           echo "Applying shfmt fixes..."
@@ -54,6 +57,7 @@ jobs:
 
       - name: "Create PR with fixes if required"
         if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
+        shell: sh
         run: |
           su -c 'whoami' runner
           git config --global user.name "Forgejo Bot"
@@ -89,39 +93,46 @@ jobs:
           fi
 
       - name: make install
+        shell: sh
         run: |
           su -c 'whoami' runner
           make install
 
       - name: xut help
+        shell: sh
         run: |
           su -c 'whoami' runner
           xut -h
 
       - name: xut sync
+        shell: sh
         run: |
           su -c 'whoami' runner
           chmod +x xut
           xut -sl
 
       - name: xut update
+        shell: sh
         run: |
           su -c 'whoami' runner
           chmod +x xut
           xut -u
 
       - name: xut search
+        shell: sh
         run: |
           su -c 'whoami' runner
           chmod +x xut
           xut -q bash
 
       - name: xut build
+        shell: sh
         run: |
           su -c 'whoami' runner
           xut -b gum
 
       - name: xut install
+        shell: sh
         run: |
           su -c 'whoami' runner
           xut -i vsv
@@ -129,7 +140,6 @@ jobs:
       - name: Setup ShellSpec
         shell: sh
         run: |
-          su -c 'whoami' runner
           echo "Starting ShellSpec setup for version ${{ env.SHELLSPEC_VERSION }}"
           INSTALL_DIR="/tmp/shellspec_install"
           mkdir -p "$INSTALL_DIR"
@@ -144,6 +154,5 @@ jobs:
       - name: Run Tests with ShellSpec
         shell: sh
         run: |
-          su -c 'whoami' runner
           echo "Running tests using path: ${{ env.SHELLSPEC_PATH }}"
           "${{ env.SHELLSPEC_PATH }}" --color --format documentation
