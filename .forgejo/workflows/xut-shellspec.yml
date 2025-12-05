@@ -36,30 +36,31 @@ jobs:
         continue-on-error: true
         shell: sh
         run: |
-          su -c 'whoami' runner
-          shellcheck -S error xut
+          su - runner -c "
+          shellcheck -S error xut"
 
       - name: "Format check using shfmt"
         id: shfmt_check
         continue-on-error: true
         shell: sh
         run: |
-          su -c 'whoami' runner
-          shfmt -d --apply-ignore -p -s -ci -kp xut
+          su - runner -c "
+          shfmt -d --apply-ignore -p -s -ci -kp xut"
 
       - name: Apply shfmt fixes if needed
         if: steps.shfmt_check.outcome == 'failure'
         shell: sh
         run: |
-          su -c 'whoami' runner
-          echo "Applying shfmt fixes..."
-          shfmt -w --apply-ignore -p -s -ci -kp xut
+          su - runner -c "
+          echo 'Applying shfmt fixes...'
+          shfmt -w --apply-ignore -p -s -ci -kp xut"
 
       - name: "Create PR with fixes if required"
         if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
-        shell: sh
+        env:
+          USER: runner
         run: |
-          su -c 'whoami' runner
+          whoami
           git config --global user.name "Forgejo Bot"
           git config --global user.email "bot@forgejo.local"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -95,47 +96,47 @@ jobs:
       - name: make install
         shell: sh
         run: |
-          su -c 'whoami' runner
-          make install
+          su - runner -c "
+          make install"
 
       - name: xut help
         shell: sh
         run: |
-          su -c 'whoami' runner
-          xut -h
+          su - runner -c "
+          xut -h"
 
       - name: xut sync
         shell: sh
         run: |
-          su -c 'whoami' runner
+          su - runner -c "
           chmod +x xut
-          xut -sl
+          xut -sl"
 
       - name: xut update
         shell: sh
         run: |
-          su -c 'whoami' runner
+          su - runner -c "
           chmod +x xut
-          xut -u
+          xut -u"
 
       - name: xut search
         shell: sh
         run: |
-          su -c 'whoami' runner
+          su - runner -c "
           chmod +x xut
-          xut -q bash
+          xut -q bash"
 
       - name: xut build
         shell: sh
         run: |
-          su -c 'whoami' runner
-          xut -b gum
+          su - runner -c "
+          xut -b gum"
 
       - name: xut install
         shell: sh
         run: |
-          su -c 'whoami' runner
-          xut -i vsv
+          su - runner -c "
+          xut -i vsv"
 
       - name: Setup ShellSpec
         shell: sh
