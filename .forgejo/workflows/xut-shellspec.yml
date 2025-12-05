@@ -19,7 +19,7 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y git shellcheck shfmt wget nodejs sudo
+          xbps-install -y bash curl git shellcheck shfmt wget nodejs shadow sudo
           useradd -m -u 1000 -s /bin/sh runner
 
       - uses: actions/checkout@v4
@@ -36,18 +36,19 @@ jobs:
         continue-on-error: true
         run: |
           su -c 'whoami' runner
-          sh shfmt -d --apply-ignore -p -s -ci -kp xut
+          shfmt -d --apply-ignore -p -s -ci -kp xut
 
       - name: Apply shfmt fixes if needed
         if: steps.shfmt_check.outcome == 'failure'
         run: |
-          echo "Applying shfmt fixes..."
           su -c 'whoami' runner
+          echo "Applying shfmt fixes..."
           shfmt -w --apply-ignore -p -s -ci -kp xut
 
       - name: "Create PR with fixes if required"
         if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
         run: |
+          su -c 'whoami' runner
           git config --global user.name "Forgejo Bot"
           git config --global user.email "bot@forgejo.local"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -82,6 +83,7 @@ jobs:
 
       - name: make install
         run: |
+          su -c 'whoami' runner
           make install
 
       - name: xut help
@@ -120,6 +122,7 @@ jobs:
       - name: Setup ShellSpec
         shell: sh
         run: |
+          su -c 'whoami' runner
           echo "Starting ShellSpec setup for version ${{ env.SHELLSPEC_VERSION }}"
           INSTALL_DIR="/tmp/shellspec_install"
           mkdir -p "$INSTALL_DIR"
@@ -134,5 +137,6 @@ jobs:
       - name: Run Tests with ShellSpec
         shell: sh
         run: |
+          su -c 'whoami' runner
           echo "Running tests using path: ${{ env.SHELLSPEC_PATH }}"
           "${{ env.SHELLSPEC_PATH }}" --color --format documentation
