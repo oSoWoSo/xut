@@ -422,59 +422,37 @@ search_templates() {
 }
 
 discover_updates() {
-    msg info "Checking for updatable packages..."
-    # Ensure template list exists
-    [ ! -r "$templatesCache/templates_restricted-packages" ] && merge_xtra_templates
-    # Build list of xtra templates in memory (fast)
-    xtraTemplatesFile="$templatesCache/xtra_templates"
-    : >"$xtraTemplatesFile"
-	cat "$templatesCache"/templates_* >>"$xtraTemplatesFile"
-    # Normalize list (unique, sorted)
-    sort -u "$xtraTemplatesFile" -o "$xtraTemplatesFile"
-     
-    
-    # BULK LOAD ALL INSTALLED PACKAGES AT ONCE
-    # This replaces thousands of individual xbps-query calls.
-    # Format: pkgname-version_rev
-    installedPkgsFile="$templatesCache/installed_pkgs.cache"
-    xbps-query -l | awk '{print $2}' >"$installedPkgsFile"
- 
-    # 2. Build a lookup table of installed versions
-    # Format: "pkgname|version_rev"
-    installedLookup="$templatesCache/installed_lookup.cache"
-    : >"$installedLookup"
-     while IFS= read -r full; do
-        pkg="${full%%-*}"                # strip version
-        verrev="${full#"$pkg"-}"         # strip name → leave version
-        printf "%s|%s\n" "$pkg" "$verrev" >>"$installedLookup"
-    done <"$installedPkgsFile"
- 
-    
-    #Compare installed versions vs template versions
+msg info "Checking for updatable packages..."
 
-    while IFS= read -r template; do
-        # Only consider templates installed on the system
-        # lookup installed version quickly
-        inst=$(grep -m1 "^$template|" "$installedLookup" | cut -d'|' -f2)
-        [ -z "$inst" ] && continue
- 
-        # Template path
-        tpl="$confWorkdir/$defaultRepoDir/srcpkgs/$template/template"
-        [ -f "$tpl" ] || continue
- 
-        # Template version from cached extract_verrev()
-        tpl_ver=$(extract_verrev "$tpl")
- 
-        # Compare versions
-        cmpver "$inst" "$tpl_ver" >/dev/null 2>&1
-        case $? in
-            255)
-                templatesToUpdate="$templatesToUpdate $template"
-                ;;
-        esac
-    done <"$xtraTemplatesFile"
- 
-    export templatesToUpdate
+# Ensure template list exists
+if [ ! -r "$templatesCache/templates_restricted-packages" ]; then
+    merge_xtra_templates
+fi
+# Build list of extra templates
+xtraTemplatesFile="$templatesCache/xtra_templates"
+: >"$xtraTemplatesFile"
+# Append templates safely
+for f in "$templatesCache"/templates_*; do
+    [ -r "$f" ] && cat "$f" >>"$xtraTemplatesFile"
+done
+# Normalize list (sorted & unique) - POSIX-safe
+tmp1=$(mktemp)
+sort -u "$xtraTemplatesFile" >"$tmp1"
+mv "$tmp1" "$xtraTemplatesFile"
+#Build list of templates to be updated
+toBeUpdated="$templatesCache/toBeUpdated"
+: >"$toBeUpdated"
+xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %\n \
+    >"$toBeUpdated"
+tmp2=$(mktemp)
+sort -u "$toBeUpdated" >"$tmp2"
+mv "$tmp2" "$toBeUpdated"
+# Intersection of sorted lists (comm requires sorting)
+comm -12 "$toBeUpdated" "$xtraTemplatesFile" \
+    >"$templatesCache/templatesToUpdate"
+# Convert file into space-separated list
+templatesToUpdate=$(tr '\n' ' ' < "$templatesCache/templatesToUpdate")
+export templatesToUpdate
 }
 
 update_packages() {
