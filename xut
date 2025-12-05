@@ -460,7 +460,7 @@ build_packages() {
 		msg info "Successfully build $packages!"
 		msg info "Packages are in $conf_workdir/$default_repo_dir/hostdir/."
 		[ "$op_foreign_host" != 1 ] &&
-			msg  info "You can install them with xbps or by running <xut -i>."
+			msg info "You can install them with xbps or by running <xut -i>."
 		exit 0
 	fi
 }
