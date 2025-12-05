@@ -139,19 +139,16 @@ jobs:
       - name: xut sync
         run: |
           su - runner -c "
-          chmod +x xut
           xut -sl"
 
       - name: xut update
         run: |
           su - runner -c "
-          chmod +x xut
           xut -u"
 
       - name: xut search
         run: |
           su - runner -c "
-          chmod +x xut
           xut -q bash"
 
       - name: xut build
@@ -164,12 +161,16 @@ jobs:
           su - runner -c "
           xut -i vsv"
 
-      - name: Setup ShellSpec
+      - name: Setup clitest
         run: |
           curl -sOL https://raw.githubusercontent.com/aureliojargas/clitest/master/clitest
           chmod +x clitest
           mv clitest /usr/bin
 
-      - name: clitest
+      - name: clitest help
         run: |
           clitest --help
+
+      - name: xut help
+        run: |
+          clitest --color always tests/help.md
