@@ -29,7 +29,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Debug Info
-        shell: sh
         run: |
           echo "ENV:"
           env
@@ -60,7 +59,6 @@ jobs:
 
       - name: Fix permissions
         id: permissions
-        shell: sh
         run: |
           chown -R runner:runner /home/runner
           chown -R runner:runner /workspace/oSoWoSo/xut
@@ -68,7 +66,6 @@ jobs:
       - name: "Lint using shellcheck"
         id: shellcheck_check
         continue-on-error: true
-        shell: sh
         run: |
           su - runner -c "
           cd /workspace/oSoWoSo/xut
@@ -77,7 +74,6 @@ jobs:
       - name: "Format check using shfmt"
         id: shfmt_check
         continue-on-error: true
-        shell: sh
         run: |
           su - runner -c "
           cd /workspace/oSoWoSo/xut
@@ -85,7 +81,6 @@ jobs:
 
       - name: Apply shfmt fixes if needed
         if: steps.shfmt_check.outcome == 'failure'
-        shell: sh
         run: |
           su - runner -c "
           cd /workspace/oSoWoSo/xut
@@ -132,52 +127,44 @@ jobs:
           fi
 
       - name: make install
-        shell: sh
         run: |
           cd /workspace/oSoWoSo/xut
           make install
 
       - name: xut help
-        shell: sh
         run: |
           su - runner -c "
           xut -h"
 
       - name: xut sync
-        shell: sh
         run: |
           su - runner -c "
           chmod +x xut
           xut -sl"
 
       - name: xut update
-        shell: sh
         run: |
           su - runner -c "
           chmod +x xut
           xut -u"
 
       - name: xut search
-        shell: sh
         run: |
           su - runner -c "
           chmod +x xut
           xut -q bash"
 
       - name: xut build
-        shell: sh
         run: |
           su - runner -c "
           xut -b gum"
 
       - name: xut install
-        shell: sh
         run: |
           su - runner -c "
           xut -i vsv"
 
       - name: Setup ShellSpec
-        shell: sh
         run: |
           echo "Starting ShellSpec setup for version ${{ env.SHELLSPEC_VERSION }}"
           INSTALL_DIR="/tmp/shellspec_install"
@@ -192,7 +179,6 @@ jobs:
           echo "ShellSpec executable path registered: $SHELLSPEC_PATH"
 
       - name: Run Tests with ShellSpec
-        shell: sh
         run: |
           echo "Running tests using path: ${{ env.SHELLSPEC_PATH }}"
           "${{ env.SHELLSPEC_PATH }}" --color --format documentation
