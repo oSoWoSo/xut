@@ -183,7 +183,8 @@ jobs:
           INSTALL_DIR="/tmp/shellspec_install"
           mkdir -p "$INSTALL_DIR"
           cd "$INSTALL_DIR" || exit 1
-          curl -o shellspec.tar.gz "https://github.com/shellspec/shellspec/archive/${{ env.SHELLSPEC_VERSION }}.tar.gz"
+          curl -L -o shellspec.tar.gz "https://github.com/shellspec/shellspec/archive/${{ env.SHELLSPEC_VERSION }}.tar.gz"
+          ls
           tar xzf shellspec.tar.gz
           # Calculate the path to the executable
           SHELLSPEC_PATH="$(pwd)/shellspec-${{ env.SHELLSPEC_VERSION }}/shellspec"
