@@ -21,15 +21,72 @@ jobs:
           xbps-install -yu
           xbps-install -y bash curl git make nodejs shellcheck shfmt sudo
           useradd -m -u 1000 -s /bin/sh runner
+          mkdir -p /home/runner
+          chown -R runner:runner /home/runner
+          cd /home/runner
 
       - uses: actions/checkout@v4
 
       - name: Debug Info
         shell: sh
         run: |
+          echo "ENV:"
           env
+          echo
+          echo
+          echo "USER:"
           whoami
+          echo
+          echo "ID:"
           id
+          echo
+          echo 'PWD:'
+          pwd
+          su - runner -c "
+            echo 'runner ENV:'
+            env
+            echo
+            echo
+            echo 'runner USER:'
+            whoami
+            echo
+            echo 'runner ID:'
+            id
+            echo
+            echo 'PWD:'
+            pwd
+            "
+
+      - name: Debug Info 2
+        shell: sh
+        env:
+          USER: runner
+        run: |
+          echo "ENV:"
+          env
+          echo
+          echo
+          echo "USER:"
+          whoami
+          echo
+          echo "ID:"
+          id
+          echo
+          echo 'PWD:'
+          pwd
+          su - runner -c "
+            echo 'runner ENV:'
+            env
+            echo
+            echo
+            echo 'runner USER:'
+            whoami
+            echo
+            echo 'runner ID:'
+            id
+            echo
+            echo 'PWD:'
+            pwd"
 
       - name: "Lint using shellcheck"
         id: shellcheck_check
