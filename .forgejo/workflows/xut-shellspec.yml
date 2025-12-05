@@ -57,43 +57,13 @@ jobs:
             pwd
             "
 
-      - name: Debug Info 2
-        shell: sh
-        env:
-          USER: runner
-        run: |
-          echo "ENV:"
-          env
-          echo
-          echo
-          echo "USER:"
-          whoami
-          echo
-          echo "ID:"
-          id
-          echo
-          echo 'PWD:'
-          pwd
-          su - runner -c "
-            echo 'runner ENV:'
-            env
-            echo
-            echo
-            echo 'runner USER:'
-            whoami
-            echo
-            echo 'runner ID:'
-            id
-            echo
-            echo 'PWD:'
-            pwd"
-
       - name: "Lint using shellcheck"
         id: shellcheck_check
         continue-on-error: true
         shell: sh
         run: |
           su - runner -c "
+          cd /workspace/oSoWoSo/xut
           shellcheck -S error xut"
 
       - name: "Format check using shfmt"
@@ -102,6 +72,7 @@ jobs:
         shell: sh
         run: |
           su - runner -c "
+          cd /workspace/oSoWoSo/xut
           shfmt -d --apply-ignore -p -s -ci -kp xut"
 
       - name: Apply shfmt fixes if needed
@@ -109,14 +80,16 @@ jobs:
         shell: sh
         run: |
           su - runner -c "
+          cd /workspace/oSoWoSo/xut
           echo 'Applying shfmt fixes...'
           shfmt -w --apply-ignore -p -s -ci -kp xut"
 
       - name: "Create PR with fixes if required"
         if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
-        env:
-          USER: runner
         run: |
+          whoami
+          runuser -u runner -- bash -c "bash -l"
+          cd /workspace/oSoWoSo/xut
           whoami
           git config --global user.name "Forgejo Bot"
           git config --global user.email "bot@forgejo.local"
@@ -154,6 +127,7 @@ jobs:
         shell: sh
         run: |
           su - runner -c "
+          cd /workspace/oSoWoSo/xut
           make install"
 
       - name: xut help
