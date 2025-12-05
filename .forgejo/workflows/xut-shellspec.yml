@@ -23,6 +23,7 @@ jobs:
           useradd -m -u 1000 -s /bin/sh runner
           mkdir -p /home/runner
           chown -R runner:runner /home/runner
+          chown -R runner:runner /workspace/oSoWoSo/xut
           cd /home/runner
 
       - uses: actions/checkout@v4
@@ -56,6 +57,13 @@ jobs:
             echo 'PWD:'
             pwd
             "
+
+      - name: Fix permissions
+        id: permissions
+        shell: sh
+        run: |
+          chown -R runner:runner /home/runner
+          chown -R runner:runner /workspace/oSoWoSo/xut
 
       - name: "Lint using shellcheck"
         id: shellcheck_check
@@ -126,9 +134,8 @@ jobs:
       - name: make install
         shell: sh
         run: |
-          su - runner -c "
           cd /workspace/oSoWoSo/xut
-          make install"
+          make install
 
       - name: xut help
         shell: sh
