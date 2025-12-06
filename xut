@@ -343,14 +343,13 @@ update_template_list() {
 	# Update all templates list
 	msg debug "Creating list of templates (This will take a while)"
 	[ ! -r "$templatesCache/templates_restricted-packages" ] && merge_xtra_templates # ensure lists exist
-	create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs/" "$templatesCache"/all_templates_source
+	xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir/srcpkgs/" -f %n | sort -u "$templatesCache"/all_templates
 	: > "$templatesCache/xtra_templates_source" 
 	cat "$templatesCache"/templates_* >>"$templatesCache"/xtra_templates_source
 	# Sort/uniq in one step
     sort -u "$templatesCache/xtra_templates_source" > "$templatesCache/xtra_templates"
-    sort -u "$templatesCache/all_templates_source" > "$templatesCache/all_templates"
-    # Cleanup
-    rm -f "$templatesCache/xtra_templates_source" "$templatesCache/all_templates_source"
+        # Cleanup
+    rm -f "$templatesCache/xtra_templates_source"
     msg debug "Template merge completed."
 	msg info "
 	templates in void-packages: $(wc -l < "$templatesCache"/void_templates)
