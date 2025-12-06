@@ -293,9 +293,9 @@ should_copy_template() {
 merge_xtra_templates() {
 	# First remove all templates lists
 	if [ "$opLog" -eq 0 ]; then
-		rm -f "$templatesCache"/templates_* "$confWorkdir"/*_templates
+		rm -f "$templatesCache"/templates_* "$templatesCache"/*_templates
 	else
-		rm -v "$templatesCache"/templates_* "$confWorkdir"/*_templates 2>/dev/null
+		rm -v "$templatesCache"/templates_* "$templatesCache"/*_templates 2>/dev/null
 	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
@@ -303,7 +303,16 @@ merge_xtra_templates() {
 	for repo in $reposList; do
 		find_repodir "$repo"
 		repoName="${repo##*/}"
-		if [ "$repo" != "$defaultRepo" ]; then
+		if [ "$repo" = "$defaultRepo" ]; then
+			default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD \
+			 | sed 's|origin/||')
+			git -C "$confWorkdir/$repodir" checkout "$default_branch" \
+			 || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+			git -C  "$confWorkdir/$repodir" clean -fd > /dev/null 2>&1 || msg error "Cannot clean $confWorkdir/$repodir repo."
+			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n | sort > "$templatesCache"/void_templates
+			# Create template list for restricted packages, in order to include them in update discovery and updates.
+			grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
+		else
 			msg info "Merging templates from ${green}${bold}$repo${resetColour}"
 			searchPath="$confWorkdir/$repodir"
 			if [ -d "$confWorkdir/$repodir/srcpkgs" ]; then
@@ -330,32 +339,40 @@ merge_xtra_templates() {
 				fi
 			done
 			printf "\n"
-		else
-			# create template list for $defaultRepo
-			create_template_list "$confWorkdir/$defaultRepoDir/srcpkgs" "$templatesCache"/void_templates
 		fi
 	done
-	# Create template list for restricted packages, in order to include them in update discovery and updates.
-	grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
 }
 
-update_template_list() {
-	# Update all templates list
-	msg debug "Creating list of templates (This will take a while)"
-	[ ! -r "$templatesCache/templates_restricted-packages" ] && merge_xtra_templates # ensure lists exist
-	xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir/srcpkgs/" -f %n | sort -u "$templatesCache"/all_templates
-	: > "$templatesCache/xtra_templates_source" 
-	cat "$templatesCache"/templates_* >>"$templatesCache"/xtra_templates_source
-	# Sort/uniq in one step
-    sort -u "$templatesCache/xtra_templates_source" > "$templatesCache/xtra_templates"
-        # Cleanup
-    rm -f "$templatesCache/xtra_templates_source"
+
+generate_all_template_lists() {
+    msg info "Generating template lists..."
+
+    # Ensure template merge has happened 
+    [ -r "$templatesCache/templates_restricted-packages" ] || merge_xtra_templates
+
+    # --- xtra template list (merging templates_*) ---
+    xtra="$templatesCache/xtra_templates"
+    : >"$xtra"
+
+    for file in "$templatesCache"/templates_*; do
+        [ -r "$file" ] && cat "$file" >>"$xtra"
+    done
+
+    # unique + sorted (portable)
+    tmp=$(mktemp)
+    sort -u "$xtra" >"$tmp"
+    mv "$tmp" "$xtra"
+	
     msg debug "Template merge completed."
-	msg info "
-	templates in void-packages: $(wc -l < "$templatesCache"/void_templates)
-	xtra templates: $(wc -l < "$templatesCache"/xtra_templates) (Not unique)
-	Available templates: ${green}${bold}$(wc -l < "$templatesCache"/all_templates)${resetColour}
-	"
+    msg info "templates in void-packages: ${green}$(wc -l < $templatesCache/void_templates)) {$reset_colour}"
+    msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${reset_colour}"
+    for repo in $reposList; do
+		find_repodir "$repo"
+		if [ "$repo" != "$defaultRepo" ]; then
+			repoName="${repo##*/}"
+			msg info "Templates in $repoName: ${green}$(wc -l < $templatesCache/templates_$repoName) ${reset_colour}"
+		fi
+	done
 }
 
 integrate_xtra_templates() {
@@ -378,9 +395,6 @@ integrate_xtra_templates() {
 	else
 		msg info "No new or updated templates to merge"
 	fi
-	if [ "$opChanged" = 1 ]; then
-		update_template_list
-	fi
 }
 
 xbps_src_command() {
@@ -392,15 +406,11 @@ xbps_src_command() {
 }
 
 search_templates() {
-	# Update template_list if not exist
-	if [ ! -f "$templatesCache"/all_templates ]; then
-		update_template_list
-	fi
-
 	msg info "Searching for <$templateQuery> ..."
 	found=0
 	for file in "$templatesCache"/templates_* "$templatesCache"/void_templates; do
 		[ ! -f "$file" ] && continue
+		[ "$file" = "$templatesCache/templates_restricted-packages" ] && continue
 		if grep -q "$templateQuery" "$file"; then
 			found=1
 			fileName="${file##*/}"
@@ -425,19 +435,10 @@ msg info "Checking for updatable packages..."
 
 # Ensure template list exists
 if [ ! -r "$templatesCache/templates_restricted-packages" ]; then
-    merge_xtra_templates
+    generate_all_template_lists
 fi
-# Build list of extra templates
+
 xtraTemplatesFile="$templatesCache/xtra_templates"
-: >"$xtraTemplatesFile"
-# Append templates safely
-for f in "$templatesCache"/templates_*; do
-    [ -r "$f" ] && cat "$f" >>"$xtraTemplatesFile"
-done
-# Normalize list (sorted & unique) - POSIX-safe
-tmp1=$(mktemp)
-sort -u "$xtraTemplatesFile" >"$tmp1"
-mv "$tmp1" "$xtraTemplatesFile"
 #Build list of templates to be updated
 toBeUpdated="$templatesCache/toBeUpdated"
 : >"$toBeUpdated"
@@ -521,6 +522,7 @@ main() {
 	retrieve_repos
 	[ "$opSync" -eq 0 ] || sync_repos
 	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
+	generate_all_template_lists
 	[ "$opUpdate" -eq 0 ] || update_packages
 	[ "$opQuery" -eq 0 ] || search_templates
 	[ "$opBuild" -eq 0 ] || build_packages
