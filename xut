@@ -50,7 +50,6 @@ opBuild=0     #Build packages, ( -b).
 opInstall=0   #Install packages (-i <package1,package2>)
 opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
 opUpdate=0    #Update sw from updated templates (-u)
-opChanged=0   #Indicated that the repo contents have changed, for internal use
 opSync=0      #Sync repos
 opIntegrate=0 #Intergrate all templates into a merged repo.
 opForeignHost=0	#Detection of non-Voidlinux host system.
@@ -116,7 +115,7 @@ readonly defaultRepoDir
 
 # Define a log filename
 confLogDir="$confWorkdir/logs"
-logFile="$confLogDir/${0##*/}_$(date +"%Y%m%d_%H%M%S").log"
+logFile="$confLogDir/xut_$(date +"%Y%m%d_%H%M%S").log"
 
 # Check for needed dirs.
 [ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
@@ -127,14 +126,14 @@ mkdir -p "$XUT_TMP/templates" || msg error "Cannot create tmpfs workspace $XUT_T
 # Merged templates directory
 mergedDir=$(mktemp -d "${XUT_TMPDIR:-/tmp}/merged.XXXXXX") || msg error "Cannot create $mergedDir"
 # Cleanup on exit
-trap 'rm -rf "$mergedDir" "$XUT_TMP/templates"' EXIT INT TERM
+trap '[ -n "$mergedDir" ] && rm -rf "$mergedDir" "$XUT_TMP/templates"' EXIT INT TERM
 }
 
 usage() {
 	# Display basic tui information
 	cat <<-EOH
 		xut $xutVersion
-		Usage: ${0##*/} [options]
+		Usage: xut [options]
 
 		*x*tra *u*ser *t*emplates
 		Build and install packages for Void Linux, from the abyss-packages unofficial repo
@@ -234,7 +233,6 @@ retrieve_repos() {
 	for repo in $reposList; do
 		find_repodir "$repo"
 		if [ ! -d "$confWorkdir/$repodir"/.git ]; then
-			opChanged=1
 			msg debug "Cloning $repo..."
 			git clone --depth 1 "$repo" "$confWorkdir/$repodir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
@@ -271,7 +269,6 @@ should_copy_template() {
 	# Quick check - if dest doesn't exist, copy immediately
 	if [ ! -f "$destTemplate" ]; then
 		msg debug "... $templateName"
-		opChanged=1
 		return 0
 	fi
 
@@ -281,9 +278,8 @@ should_copy_template() {
 	msg debug "Comparing: $sourceTemplateName($srcVer) vs $destTemplateName($destVer)"
 	cmpver  "$destVer" "$srcVer"
 	# If source is newer
-	if [ "$?" = 255 ]; then
+	if [ "$?" -eq 255 ]; then
 		msg info "... $templateName ${green}${bold}$srcVer${resetColour}"
-		opChanged=1
 		return 0
 	fi
 
@@ -291,12 +287,6 @@ should_copy_template() {
 }
 
 merge_xtra_templates() {
-	# First remove all templates lists
-	if [ "$opLog" -eq 0 ]; then
-		rm -f "$templatesCache"/templates_* "$templatesCache"/*_templates
-	else
-		rm -v "$templatesCache"/templates_* "$templatesCache"/*_templates 2>/dev/null
-	fi
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
 	
@@ -308,6 +298,7 @@ merge_xtra_templates() {
 			 | sed 's|origin/||')
 			git -C "$confWorkdir/$repodir" checkout "$default_branch" \
 			 || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+			# Create template lists from a clean checkout.
 			git -C  "$confWorkdir/$repodir" clean -fd > /dev/null 2>&1 || msg error "Cannot clean $confWorkdir/$repodir repo."
 			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n | sort > "$templatesCache"/void_templates
 			# Create template list for restricted packages, in order to include them in update discovery and updates.
@@ -364,13 +355,13 @@ generate_all_template_lists() {
     mv "$tmp" "$xtra"
 	
     msg debug "Template merge completed."
-    msg info "templates in void-packages: ${green}$(wc -l < $templatesCache/void_templates)) {$reset_colour}"
-    msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${reset_colour}"
+    msg info "templates in void-packages: ${green}$(wc -l < $templatesCache/void_templates)${resetColour}"
+    msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${resetColour}"
     for repo in $reposList; do
 		find_repodir "$repo"
 		if [ "$repo" != "$defaultRepo" ]; then
 			repoName="${repo##*/}"
-			msg info "Templates in $repoName: ${green}$(wc -l < $templatesCache/templates_$repoName) ${reset_colour}"
+			msg info "Templates in $repoName: ${green}$(wc -l < $templatesCache/templates_$repoName) ${resetColour}"
 		fi
 	done
 }
@@ -406,7 +397,7 @@ xbps_src_command() {
 }
 
 search_templates() {
-	msg info "Searching for <$templateQuery> ..."
+	msg info "Searching for ${yellow}[$templateQuery]${resetColour} ..."
 	found=0
 	for file in "$templatesCache"/templates_* "$templatesCache"/void_templates; do
 		[ ! -f "$file" ] && continue
