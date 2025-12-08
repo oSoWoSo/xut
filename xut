@@ -401,6 +401,8 @@ search_templates() {
 	found=0
 	for file in "$templatesCache"/templates_* "$templatesCache"/void_templates; do
 		[ ! -f "$file" ] && continue
+		# Ommit template_restricted-packages as they are part of void-packages.
+		# The template list file is needed for discover_updates()/
 		[ "$file" = "$templatesCache/templates_restricted-packages" ] && continue
 		if grep -q "$templateQuery" "$file"; then
 			found=1
@@ -461,21 +463,25 @@ update_packages() {
 	exit 0
 }
 
+prepare_for_build() {
+# Prepare for installation
+# Enable building restricted packages
+if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$confWorkdir"/"$defaultRepoDir"/etc/conf; then
+	msg debug "Building restricted packages is enabled!"
+else
+	msg info "Enable building restricted packages!"
+	printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >>"$confWorkdir"/"$defaultRepoDir"/etc/conf
+fi
+# Bootstrap if masterdir is not populated
+if [ ! -e "$confWorkdir"/"$defaultRepoDir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ]; then
+	cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change to $confWorkdir/$defaultRepoDir"
+	./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"
+fi
+}
+
 build_packages() {
-	# Prepare for installation
-	# Enable building restricted packages
-	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$confWorkdir"/"$defaultRepoDir"/etc/conf; then
-		msg debug "Building restricted packages is enabled!"
-	else
-		msg info "Enable building restricted packages!"
-		printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >>"$confWorkdir"/"$defaultRepoDir"/etc/conf
-	fi
-	# Bootstrap if masterdir is not populated
-	if [ ! -e "$confWorkdir"/"$defaultRepoDir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ]; then
-		cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change to $confWorkdir/$defaultRepoDir"
-		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"
-	fi
 	# Start package build
+	prepare_for_build
 	packageList="$(echo "$packages" | tr ',' ' ')"
 	export packageList="$packageList"
 	# Check if the first package is an argument
