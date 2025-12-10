@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "XUT" "1" "2025-11-22"
+.TH "XUT" "1" "2025-12-10"
 .PP
 .SH NAME
 .PP
@@ -13,7 +13,7 @@
 .PP
 .SH SYNOPSIS
 .PP
-\fBxut\fR [-ls] [-h] [-u ]  [-b \fIpackages1,package2,.\&.\&.\&\fR | -i \fIpackages1,package2,.\&.\&.\&\fR] [-x <xbps-src command>] [-q <query>]
+\fBxut\fR [-lsd] [-h] [-u ]  [-b \fIpackages1,package2,.\&.\&.\&\fR | -i \fIpackages1,package2,.\&.\&.\&\fR] [-x <xbps-src command>] [-q <query>]
 .PP
 .SH DESCRIPTION
 .PP
@@ -35,6 +35,11 @@ Enable logging to a file.\&
 \fB-h\fR
 .RS 4
 Display usage information.\&
+.PP
+.RE
+\fB-d\fR
+.RS 4
+Enable debugging and logging output.\&
 .PP
 .RE
 \fB-b <package1,package2>\fR
@@ -84,6 +89,9 @@ If \fB-x\fR is used, \fB-b\fR, \fB-i\fR and \fB-q\fR will be ignored.\&
 .PP
 \fBCONF_WORKDIR\fR accepts a path to a directory and xut uses it as 
 a working directory, overriding the configuration.\&
+.PP
+\fBXUT_TMPDIR\fR accepts a path to a directory that xut uses for temporary
+files, overriding the default (/tmp).\&
 .PP
 .RE
 .SH CONFIGURATION
