@@ -453,12 +453,12 @@ build_packages() {
 	# Start package build
 	prepare_for_build
 	packageList="$(echo "$packages" | tr ',' ' ')"
-	export packageList="$packageList"
-	# Check if the first package is an argument
-	set -- "$packageList"
-	for first in i u x h q; do
-		if [ "${1}" = "$first" ]; then
-		msg error "${1} is wrong, expecting a package name not an argument!"; fi ;done
+	export packageList
+	# Check if templates exist - provide a better message than the
+	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
+	for template in $packageList; do
+		if [ ! -d "$confWorkdir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
+		msg error "[$template] is wrong, expecting a package name!"; fi ;done
 	for package in $packageList; do
 		cd "$confWorkdir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
 		cmdStatus=$?
