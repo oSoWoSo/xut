@@ -117,29 +117,32 @@ set_default_configuration() {
 
 usage() {
 	# Display basic tui information
-	cat <<-EOH
-		xut $xutVersion
-		Usage: xut [options]
+	printf "%s\n" "${green}${bold}
+            _   
+__  ___   _| |_ 
+\ \/ / | | | __|
+ >  <| |_| | |_ 
+/_/\_\\__,_|\__| ${resetColour}"
+printf "%s\n" "${yellow}${bold}
+*x*tra *u*ser *t*emplates
+Build and install packages for Void Linux, from unofficial abyss-packages template repo.
+Version: $xutVersion
+Usage: xut [options] ${resetColour}"
+printf "%s\n" "${bold}
+OPTIONS
+ -s                      Sync the repos.
+ -l                      Keep a log file under $confLogDir.
+ -h                      Display this usage information.
+ -d						 Enable debugging and logging output.
+ -b <package1,package2>  Build a list of (comma-separated) packages.
+ -i <package1,package2>  Build and install a list of (comma-separated) packages.
+ -x                      Give xbps-src commands.
+ -q <query>              Search for <query> in available templates.
+ -u                      Update packages.
 
-		*x*tra *u*ser *t*emplates
-		Build and install packages for Void Linux, from the abyss-packages unofficial repo
-
-		OPTIONS
-		 -s                      Sync the repos.
-		 -l                      Keep a log file under $confLogDir.
-		 -h                      Display this usage information.
-		 -d						 Enable debugging and logging output.
-		 -b <package1,package2>  Build a list of (comma-separated) packages.
-		 -i <package1,package2>  Build and install a list of (comma-separated) packages.
-		 -x                      Give xbps-src commands.
-		 -q <query>              Search for <query> in available templates.
-		 -u                      Update packages.
-
-		 The options are given together. For example in order to sync,
-		 enable logging and install <package> the cli command is
-		 <xut -sli package>.
-
-	EOH
+	 The options are given together. For example in order to sync,
+	 enable logging and install <package> the cli command is
+	 <xut -sli package>.${resetColour}"
 }
 
 find_repodir() {
