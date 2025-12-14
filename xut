@@ -50,6 +50,7 @@ set_default_vars() {
 
 distribution_sanity_check() {
 	# Disable install and update when run in a non-Void distribution
+	#shellcheck disable=SC1091
 	[ -r /etc/os-release ] && . /etc/os-release
 	if [ -z "$NAME" ] || [ "$NAME" != "Void" ]; then
 		opUpdate=0; opInstall=0; opForeignHost=1
