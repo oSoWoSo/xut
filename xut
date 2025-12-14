@@ -319,9 +319,9 @@ generate_all_template_lists() {
     for file in "$templatesCache"/templates_*; do
         [ -r "$file" ] && cat "$file" >>"$xtra"
     done
-
+	
     # unique + sorted (portable)
-    tmp=$(mktemp)
+	tmp=$(mktemp) || msg error "Failed to create temp file"
     sort -u "$xtra" >"$tmp"
     mv "$tmp" "$xtra"
 	
@@ -406,7 +406,7 @@ discover_updates() {
 	#Build list of templates to be updated
 	toBeUpdated="$templatesCache/toBeUpdated"
 	: >"$toBeUpdated"
-	xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %\n \
+	xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %n \
      >"$toBeUpdated"
 	tmp2=$(mktemp)
 	sort -u "$toBeUpdated" >"$tmp2"
