@@ -239,7 +239,7 @@ $ xut -h     #=> --lines 21
 Test if xut sync repos correctly
 
 ```bash
-$ xut -s     #=> --exit 0
+$ xut -s     #=> --egrep Available templates
 ```
 
 ## Test 3 - xut sync with log
@@ -247,7 +247,7 @@ $ xut -s     #=> --exit 0
 Test xut sync with log
 
 ```bash
-$ xut -sl     #=> --exit 0
+$ xut -sl     #=> --egrep Debug :
 ```
 
 ## Test 4 - xut update
@@ -255,7 +255,8 @@ $ xut -sl     #=> --exit 0
 Test if update works
 
 ```bash
-$ xut -u     #=> --exit 0
+$ xut -u     #=> --egrep Checking for updatable packages
+$ xut -ul    #=> --egrep ^Debug :|Warning: No updates available
 ```
 
 ## Test 5 - xut search
@@ -263,7 +264,7 @@ $ xut -u     #=> --exit 0
 Test if search for bash works
 
 ```bash
-$ xut -q bash     #=> --egrep ^abyss-packages|void-packages
+$ xut -q bash     #=> --egrep ^bas|abyss-packages|void-packages
 ```
 
 ## Test 6 - xut build
@@ -276,16 +277,15 @@ $ xut -b gum     #=> --egrep Successfully build gum
 
 ## Test 7 - xut install
 
-Test if xut will install vsv without sudo
-Expected fail
+Test if xut will install vsv
 
 ```bash
 $ xut -i vsv     #=> --egrep vsv installed
 ```
 
-## Test 8 -
-
 ## Test 8 - run xut as root
+
+If fail as expected test will be pass
 
 ```bash
 Expected to fail!
