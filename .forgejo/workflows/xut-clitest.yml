@@ -71,9 +71,17 @@ jobs:
         id: shellcheck_check
         continue-on-error: true
         run: |
-          su - runner -c "
-          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
-          shellcheck xut"
+          su - runner -c "cd '/workspace/$FORGEJO_REPOSITORY_OWNER/xut' &&
+            shellcheck xut" | tee /tmp/shellcheck.txt 2>&1 || true
+          if [ -s /tmp/shellcheck.txt ]; then
+            echo "## ❌ Shellcheck Issues Found" >> $FORGEJO_STEP_SUMMARY
+            echo "" >> $FORGEJO_STEP_SUMMARY
+            echo '```bash' >> $FORGEJO_STEP_SUMMARY
+            cat /tmp/shellcheck.txt >> $FORGEJO_STEP_SUMMARY
+            echo '```' >> $FORGEJO_STEP_SUMMARY
+            exit 1
+          fi
+
 
       - name: "Format check using shfmt"
         id: shfmt_check
