@@ -102,7 +102,7 @@ xut -sli package1,package2
 
 clitest
 ```shell
-$ yes | xut -sli vsv,fastfetch   #=> --egrep Package(s) vsv,fastfetch installed
+$ yes | xut -sli vsv,fastfetch   #=> --egrep vsv,fastfetch installed
 $ command -v vsv
 /usr/bin/vsv
 $ fastfetch                #=> --egrep OS: Void Linux
