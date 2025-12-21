@@ -87,7 +87,7 @@ xut -si package1,package2
 
 clitest
 ```shell
-$ xut -si vpm,fzf          #=> --exit 0
+$ yes | xut -si vpm,fzf          #=> --exit 0
 $ command -v vpm
 /usr/bin/vpm
 $ command -v fzf
@@ -102,7 +102,7 @@ xut -sli package1,package2
 
 clitest
 ```shell
-$ xut -sli vsv,fastfetch...#=> --egrep Package(s) vsv,fastfetch installed
+$ yes | xut -sli vsv,fastfetch   #=> --egrep Package(s) vsv,fastfetch installed
 $ command -v vsv
 /usr/bin/vsv
 $ fastfetch                #=> --egrep OS: Void Linux
