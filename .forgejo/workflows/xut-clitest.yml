@@ -10,9 +10,9 @@ jobs:
     runs-on: codeberg-medium
     container:
       image: ghcr.io/void-linux/void-glibc-full
-      options: --user runner
-      env:
-        SHELLSPEC_VERSION: '0.28.1'
+      #options: --user runner
+      #env:
+       # SHELLSPEC_VERSION: '0.28.1'
 
     steps:
       - name: Install dependencies and create runner user
@@ -27,7 +27,7 @@ jobs:
           chown -R runner:runner /workspace/oSoWoSo/xut
           cd /home/runner
           # Setup passwordless sudo for xi
-          echo "runner ALL=(ALL) NOPASSWD: /usr/bin/xi" | tee /etc/sudoers.d/xbps-nopasswd
+          echo "runner ALL=(ALL) NOPASSWD: ALL" | tee /etc/sudoers.d/xbps-nopasswd
           chmod 0440 /etc/sudoers.d/xbps-nopasswd
 
       - uses: actions/checkout@v4
