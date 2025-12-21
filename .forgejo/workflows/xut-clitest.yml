@@ -19,7 +19,7 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y bash curl git make nodejs shellcheck shfmt sudo xtools
+          xbps-install -y bash curl git jq make nodejs shellcheck shfmt sudo xtools
           # Add unprivileged 'runner' user
           useradd -m -u 1000 -s /bin/sh runner
           mkdir -p /home/runner
