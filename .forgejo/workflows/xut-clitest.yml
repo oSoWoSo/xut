@@ -103,16 +103,6 @@ jobs:
             BASE_BRANCH="${{ github.ref_name }}"
             BRANCH_NAME="auto-fix-formatting-${BASE_BRANCH}"
 
-            # Fetch all branches to check if our branch exists
-            git fetch origin
-
-            # Check if PR with this exact branch name already exists
-            EXISTING_PR=$(curl -s \
-              -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
-              "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls?state=open" \
-              | jq -r ".[] | select(.head.ref == \"$BRANCH_NAME\" and .base.ref == \"$BASE_BRANCH\") | .number // empty" \
-              | head -n1)
-
             # Prepare commit message
             COMMIT_MSG="🤖 Auto-fix: Code formatting and linting"
             if [ "${{ steps.shellcheck_check.outcome }}" == "failure" ]; then
@@ -122,40 +112,26 @@ jobs:
               COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"- Applied shfmt formatting"
             fi
 
-            # Check if branch exists on remote
-            if git rev-parse --verify "origin/$BRANCH_NAME" >/dev/null 2>&1; then
-              echo "Branch '$BRANCH_NAME' exists on remote"
-              if [ -n "$EXISTING_PR" ]; then
-                echo "⚠️ PR #$EXISTING_PR already exists, updating..."
-                # Checkout existing branch
-                git checkout -B "$BRANCH_NAME" "origin/$BRANCH_NAME"
-                # Merge changes from base branch to avoid conflicts
-                git merge "origin/$BASE_BRANCH" --no-edit || true
-                git add -A
+            # Commit changes on current branch
+            git add -A
+            git commit -m "$COMMIT_MSG"
 
-                # Check if there are actual changes
-                if ! git diff --cached --quiet 2>/dev/null; then
-                  git commit -m "$COMMIT_MSG"
-                  git push origin "$BRANCH_NAME"
-                  echo "✓ Updated existing PR #$EXISTING_PR with new fixes"
-                else
-                  echo "✓ No new changes to add to PR #$EXISTING_PR"
-                fi
-              else
-                echo "Branch exists but no open PR found, force pushing..."
-                git checkout -B "$BRANCH_NAME" "origin/$BASE_BRANCH"
-                git add -A
-                git commit -m "$COMMIT_MSG"
-                git push --force origin "$BRANCH_NAME"
-                echo "✓ Force pushed to existing branch (no open PR)"
-              fi
+            # Fetch to check if PR branch exists
+            git fetch origin
+
+            # Check if PR with this exact branch name already exists
+            EXISTING_PR=$(curl -s \
+              -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
+              "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls?state=open" \
+              | jq -r ".[] | select(.head.ref == \"$BRANCH_NAME\" and .base.ref == \"$BASE_BRANCH\") | .number // empty" \
+              | head -n1)
+
+            # Force push current branch to auto-fix branch
+            git push origin "HEAD:$BRANCH_NAME" --force
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "✓ Updated existing PR #$EXISTING_PR with new fixes"
             else
-              echo "Creating new branch '$BRANCH_NAME' from '$BASE_BRANCH'..."
-              git checkout -b "$BRANCH_NAME" "origin/$BASE_BRANCH"
-              git add -A
-              git commit -m "$COMMIT_MSG"
-              git push origin "$BRANCH_NAME"
-
               # Create new PR
               curl -X POST \
                 -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
