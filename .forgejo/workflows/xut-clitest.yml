@@ -168,7 +168,8 @@ jobs:
         continue-on-error: true
         run: |
           su - runner -c "
-          clitest --color always --pre-flight pwd -s 25 xut-tests.md"
+            export FORGEJO_REPOSITORY_OWNER=$FORGEJO_REPOSITORY_OWNER
+            clitest --color always --pre-flight pwd -s 25 xut-tests.md"
 
       - name: xut clitest as ROOT
         continue-on-error: true
