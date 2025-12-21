@@ -223,7 +223,7 @@ Install xut for all users
 
 ```bash
 $ cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
-$ sudo make install; echo $?
+$ sudo make install              #=> --exit 0
 0
 $
 

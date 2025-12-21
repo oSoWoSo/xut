@@ -168,7 +168,7 @@ jobs:
           echo "Current branch is: $(git branch --show-current)"
           echo "tests content: $(ls tests/)"
           echo "path is: $(pwd)"
-          su - runner -c "cp "/workspace/$FORGEJO_REPOSITORY_OWNER/xut/tests/xut-tests.md" /home/runner/"
+          su - runner -c "cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/tests/xut-tests.md /home/runner/"
           cp tests/xut-tests.md ./
 
       - name: xut clitest
@@ -186,4 +186,5 @@ jobs:
       - name: xut clitest (xut README)
         run: |
           su - runner -c "
+            cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/README.md ./
             clitest --color always README.md"
