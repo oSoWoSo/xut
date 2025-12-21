@@ -168,9 +168,9 @@ jobs:
         continue-on-error: true
         run: |
           su - runner -c "
-          clitest --color always --pre-flight pwd -s 23 xut-tests.md"
+          clitest --color always --pre-flight pwd -s 25 xut-tests.md"
 
       - name: xut clitest as ROOT
         continue-on-error: true
         run: |
-          clitest --color always --pre-flight pwd -t 23 xut-tests.md
+          clitest --color always --pre-flight pwd -t 25 xut-tests.md
