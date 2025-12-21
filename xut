@@ -144,11 +144,11 @@ find_repodir() {
 }
 
 create_template_list() {
-   find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' > "$2"
+	find -L "${1}" -mindepth 1 -maxdepth 1 -type d | sed 's:/*$::' | sed 's:.*/::' >"$2"
 }
 
 extract_verrev() {
-awk -F= '
+	awk -F= '
 	/^version=/ { gsub(/"/, "", $2); ver=$2 }
 	/^revision=/ { gsub(/"/, "", $2); rev=$2 }
 	 END { printf "%s_%s", ver, rev }
@@ -164,7 +164,6 @@ include_additional_repos() {
 	done
 	repos_list="$repos_list $repo_abyss_packages"
 }
-
 
 retrieve_repos() {
 	if [ "$op_retrieve" = 0 ]; then
@@ -460,8 +459,8 @@ build_packages() {
 	if [ -n "$packages" ] && [ "$op_install" = 0 ]; then
 		msg info "Successfully build $packages!"
 		msg info "Packages are in $conf_workdir/$default_repo_dir/hostdir/."
-		[ "$op_foreign_host" != 1 ] \
-			&& msg info "You can install them with xbps or by running <xut -i>."
+		[ "$op_foreign_host" != 1 ] &&
+			msg info "You can install them with xbps or by running <xut -i>."
 		exit 0
 	fi
 }
@@ -498,7 +497,7 @@ while getopts "slhub:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) op_retrieve=1 ;;
 		l) op_log=1 ;;
-		h)	
+		h)
 			usage
 			root_check
 			exit 0
