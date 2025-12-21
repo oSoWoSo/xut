@@ -222,8 +222,8 @@ $
 Install xut for all users
 
 ```bash
-$ cd /workspace/oSoWoSo/xut
-$ sudo make install
+$ cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+$ sudo make install               #=> --exit 0
 $
 
 ## Test 1 - xut help
@@ -231,7 +231,7 @@ $
 Test number of lines in xut help
 
 ```bash
-$ xut -h     #=> --lines 21
+$ xut -h                          #=> --lines 21
 ```
 
 ## Test 2 - xut sync
@@ -239,7 +239,7 @@ $ xut -h     #=> --lines 21
 Test if xut sync repos correctly
 
 ```bash
-$ xut -s     #=> --egrep Available templates
+$ xut -s                          #=> --egrep Available templates
 ```
 
 ## Test 3 - xut sync with log
@@ -247,7 +247,7 @@ $ xut -s     #=> --egrep Available templates
 Test xut sync with log
 
 ```bash
-$ xut -sl     #=> --egrep Debug :
+$ xut -sl                         #=> --egrep Debug :
 ```
 
 ## Test 4 - xut update
@@ -255,8 +255,8 @@ $ xut -sl     #=> --egrep Debug :
 Test if update works
 
 ```bash
-$ xut -u     #=> --egrep Checking for updatable packages
-$ xut -ul    #=> --egrep ^Debug :|Warning: No updates available
+$ xut -u                          #=> --egrep Checking for updatable packages
+$ xut -ul                         #=> --egrep ^Debug :|Warning: No updates available
 ```
 
 ## Test 5 - xut search
@@ -264,7 +264,7 @@ $ xut -ul    #=> --egrep ^Debug :|Warning: No updates available
 Test if search for bash works
 
 ```bash
-$ xut -q bash     #=> --egrep ^bas|abyss-packages|void-packages
+$ xut -q bash                     #=> --egrep ^bas|abyss-packages|void-packages
 ```
 
 ## Test 6 - xut build
@@ -272,7 +272,7 @@ $ xut -q bash     #=> --egrep ^bas|abyss-packages|void-packages
 Test if xut will build gum
 
 ```bash
-$ xut -b gum     #=> --egrep Successfully build gum
+$ xut -b gum                      #=> --egrep Successfully build gum
 ```
 
 ## Test 7 - xut install
@@ -280,7 +280,7 @@ $ xut -b gum     #=> --egrep Successfully build gum
 Test if xut will install vsv
 
 ```bash
-$ xut -i vsv     #=> --egrep vsv installed
+$ xut -i vsv                      #=> --egrep vsv installed
 ```
 
 ## Test 8 - run xut as root
@@ -289,7 +289,7 @@ If fail as expected test will be pass
 
 ```bash
 Expected to fail!
-$ xut -h         #=> --exit 1
+$ xut -h                          #=> --exit 1
 ```
 
 ## Test 9 -
