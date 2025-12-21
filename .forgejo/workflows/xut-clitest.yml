@@ -24,7 +24,7 @@ jobs:
           useradd -m -u 1000 -s /bin/sh runner
           mkdir -p /home/runner
           chown -R runner:runner /home/runner
-          chown -R runner:runner /workspace/oSoWoSo/xut
+          chown -R runner:runner "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           cd /home/runner
           # Setup passwordless sudo for xi
           echo "runner ALL=(ALL) NOPASSWD: ALL" | tee /etc/sudoers.d/xbps-nopasswd
@@ -65,14 +65,14 @@ jobs:
         id: permissions
         run: |
           chown -R runner:runner /home/runner
-          chown -R runner:runner /workspace/oSoWoSo/xut
+          chown -R runner:runner "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
 
       - name: "Lint using shellcheck"
         id: shellcheck_check
         continue-on-error: true
         run: |
           su - runner -c "
-          cd /workspace/oSoWoSo/xut
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           shellcheck xut"
 
       - name: "Format check using shfmt"
@@ -80,21 +80,21 @@ jobs:
         continue-on-error: true
         run: |
           su - runner -c "
-          cd /workspace/oSoWoSo/xut
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           shfmt -d --apply-ignore -p -s -ci -kp xut"
 
       - name: Apply shfmt fixes if needed
         if: steps.shfmt_check.outcome == 'failure'
         run: |
           su - runner -c "
-          cd /workspace/oSoWoSo/xut
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           echo 'Applying shfmt fixes...'
           shfmt -w --apply-ignore -p -s -ci -kp xut"
 
       - name: "Create or update PR with fixes if required"
         if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
         run: |
-          cd /workspace/oSoWoSo/xut
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           git config --global user.name "Forgejo Bot"
           git config --global user.email "bot@forgejo.local"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -157,11 +157,11 @@ jobs:
 
       - name: pretest
         run: |
-          git config --global --add safe.directory /workspace/oSoWoSo/xut
+          git config --global --add safe.directory "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
           echo "Current branch is: $(git branch --show-current)"
           echo "tests content: $(ls tests/)"
           echo "path is: $(pwd)"
-          su - runner -c "cp /workspace/oSoWoSo/xut/tests/xut-tests.md /home/runner/"
+          su - runner -c "cp "/workspace/$FORGEJO_REPOSITORY_OWNER/xut/tests/xut-tests.md" /home/runner/"
           cp tests/xut-tests.md ./
 
       - name: xut clitest
