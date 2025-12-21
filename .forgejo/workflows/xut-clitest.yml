@@ -146,7 +146,7 @@ jobs:
                 "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls" \
                 -d "{
                   \"title\": \"🤖 Auto-fix: Code formatting (from $BASE_BRANCH)\",
-                  \"body\": \"This PR was automatically created by CI to fix formatting issues in branch \`$BASE_BRANCH\`.\\n\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\\n\\nThis PR will be automatically updated with new fixes as needed.\",
+                  \"body\": \"This PR was automatically created by CI to fix formatting issues in branch \`$BASE_BRANCH\`.\\n\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\\n\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\nThis PR will be automatically updated with new fixes as needed.\",
                   \"head\": \"$BRANCH_NAME\",
                   \"base\": \"$BASE_BRANCH\"
                 }"
