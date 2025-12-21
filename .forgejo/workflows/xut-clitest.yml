@@ -20,11 +20,15 @@ jobs:
           xbps-install -Syu xbps
           xbps-install -yu
           xbps-install -y bash curl git make nodejs shellcheck shfmt sudo xtools
+          # Add unprivileged 'runner' user
           useradd -m -u 1000 -s /bin/sh runner
           mkdir -p /home/runner
           chown -R runner:runner /home/runner
           chown -R runner:runner /workspace/oSoWoSo/xut
           cd /home/runner
+          # Setup passwordless sudo for xi
+          echo "runner ALL=(ALL) NOPASSWD: /usr/bin/xi" | tee /etc/sudoers.d/xbps-nopasswd
+          chmod 0440 /etc/sudoers.d/xbps-nopasswd
 
       - uses: actions/checkout@v4
 
