@@ -158,7 +158,8 @@ jobs:
 
       - name: Setup clitest
         run: |
-          curl -sOL https://raw.githubusercontent.com/aureliojargas/clitest/master/clitest
+          # Use my fork with verbose and more colors
+          curl -sOL https://codeberg.org/oSoWoSo/clitest/raw/branch/main/clitest
           chmod +x clitest
           mv clitest /usr/bin
 
@@ -176,15 +177,14 @@ jobs:
         run: |
           su - runner -c "
             export FORGEJO_REPOSITORY_OWNER=$FORGEJO_REPOSITORY_OWNER
-            clitest --color always --pre-flight pwd -s 25 xut-tests.md"
+            clitest --color always -v --pre-flight pwd -s 25 xut-tests.md"
 
       - name: xut clitest as ROOT
         continue-on-error: true
-        run: |
-          clitest --color always --pre-flight pwd -t 25 xut-tests.md
+        run: clitest --color always -v --pre-flight pwd -t 25 xut-tests.md
 
       - name: xut clitest (xut README)
         run: |
           su - runner -c "
             cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/README.md ./
-            clitest --color always README.md"
+            clitest --color always -v README.md"
