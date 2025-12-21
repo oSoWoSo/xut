@@ -112,7 +112,7 @@ to change the default output matching method.
 ```console
 
 $ echo "abcdef" | cut -c 1-4  #=> abcd
-$ head /etc/passwd            #=> --lines 10
+$ head /etc/passwd            #=> --lines 4
 $ tac /etc/passwd | tac       #=> --file /etc/passwd
 $ cat /etc/passwd             #=> --egrep ^root:
 $ echo $((2 + 10))            #=> --regex ^\d+$
@@ -262,7 +262,7 @@ $ xut -q bash     #=> --egrep ^abyss-packages|void-packages
 Test if xut will build gum
 
 ```bash
-$ xut -b gum     #=> --egrep Successfully build gum!
+$ xut -b gum     #=> --egrep Successfully build gum
 ```
 
 ## Test 7 - xut install
@@ -276,12 +276,11 @@ $ xut -i vsv     #=> --egrep vsv installed
 
 ## Test 8 -
 
-#TODO empty test
+## Test 8 - run xut as root
 
 ```bash
-$ echo
-
-$
+Expected to fail!
+$ xut -h         #=> --exit 1
 ```
 
 ## Test 9 -
