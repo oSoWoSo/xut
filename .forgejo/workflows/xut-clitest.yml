@@ -82,7 +82,6 @@ jobs:
             exit 1
           fi
 
-
       - name: "Format check using shfmt"
         id: shfmt_check
         continue-on-error: true
@@ -183,3 +182,8 @@ jobs:
         continue-on-error: true
         run: |
           clitest --color always --pre-flight pwd -t 25 xut-tests.md
+
+      - name: xut clitest (xut README)
+        run: |
+          su - runner -c "
+            clitest --color always README.md"
