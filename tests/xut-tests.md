@@ -217,6 +217,15 @@ $ echo "Start testing 'xut'"
 Start testing 'xut'
 $
 
+## TEST 0 - Install xut
+
+Install xut for all users
+
+```bash
+$ cd /workspace/oSoWoSo/xut
+$ sudo make install
+$
+
 ## Test 1 - xut help
 
 Test number of lines in xut help

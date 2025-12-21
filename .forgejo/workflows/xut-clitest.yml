@@ -173,51 +173,11 @@ jobs:
             echo "✓ No changes to commit"
           fi
 
-      - name: make install
-        run: |
-          cd /workspace/oSoWoSo/xut
-          make install
-
-      - name: xut help
-        run: |
-          su - runner -c "
-          xut -h"
-
-      - name: xut sync
-        run: |
-          su - runner -c "
-          xut -sl"
-
-      - name: xut update
-        run: |
-          su - runner -c "
-          xut -u"
-
-      - name: xut search
-        run: |
-          su - runner -c "
-          xut -q bash"
-
-      - name: xut build
-        run: |
-          su - runner -c "
-          xut -b gum"
-
-      - name: xut install
-        run: |
-          su - runner -c "
-          xut -i vsv"
-
       - name: Setup clitest
         run: |
           curl -sOL https://raw.githubusercontent.com/aureliojargas/clitest/master/clitest
           chmod +x clitest
           mv clitest /usr/bin
-
-      - name: clitest help
-        run: |
-          su - runner -c "
-          clitest --help"
 
       - name: pretest
         run: |
@@ -232,9 +192,9 @@ jobs:
         continue-on-error: true
         run: |
           su - runner -c "
-          clitest --color always --pre-flight pwd -s 22 xut-tests.md"
+          clitest --color always --pre-flight pwd -s 23 xut-tests.md"
 
       - name: xut clitest as ROOT
         continue-on-error: true
         run: |
-          clitest --color always --pre-flight pwd -t 22 xut-tests.md
+          clitest --color always --pre-flight pwd -t 23 xut-tests.md
