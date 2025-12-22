@@ -58,7 +58,7 @@ xut [options]
 
 | OPTIONS                | Info                                                    |
 | ---------------------- | ------------------------------------------------------- |
-| -s                     | Sync the repos
+| -s                     | Sync the repos                                          |
 | -l                     | Keep a log file (5 most recent log files remain)        |
 | -h                     | Display this usage information.                         |
 | -d			         | Enable debugging and logging output.                    |
@@ -66,9 +66,7 @@ xut [options]
 | -i <package1,package2> | Build and install a (comma-separated) list of packages. |
 | -x <command>           | Give xbps-src commands.                                 |
 | -q <query>             | Search for <query> in available templates.              |
-| -u                     | Update packages.							               |
-                                     |
-
+| -u                     | Update packages.                                        |
 
 ### Examples
 

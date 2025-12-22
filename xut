@@ -118,10 +118,10 @@ set_default_configuration() {
 usage() {
 	# Display basic tui information
 	printf "%s\n" "${green}${bold}
-            _   
-__  ___   _| |_ 
+            _
+__  ___   _| |_
 \ \/ / | | | __|
- >  <| |_| | |_ 
+ >  <| |_| | |_
 /_/\_\\__,_|\__| ${resetColour}"
 printf "%s\n" "${yellow}${bold}
 *x*tra *u*ser *t*emplates
@@ -133,7 +133,7 @@ OPTIONS
  -s                      Sync the repos.
  -l                      Keep a log file under $confLogDir.
  -h                      Display this usage information.
- -d						 Enable debugging and logging output.
+ -d                      Enable debugging and logging output.
  -b <package1,package2>  Build a list of (comma-separated) packages.
  -i <package1,package2>  Build and install a list of (comma-separated) packages.
  -x                      Give xbps-src commands.
@@ -260,7 +260,7 @@ should_copy_template() {
 merge_xtra_templates() {
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
-	
+
 	for repo in $reposList; do
 		find_repodir "$repo"
 		repoName="${repo##*/}"
@@ -309,7 +309,7 @@ merge_xtra_templates() {
 generate_all_template_lists() {
     msg info "Generating template lists..."
 
-    # Ensure template merge has happened 
+    # Ensure template merge has happened
     [ -r "$templatesCache/templates_restricted-packages" ] || merge_xtra_templates
 
     # --- xtra template list (merging templates_*) ---
@@ -319,12 +319,12 @@ generate_all_template_lists() {
     for file in "$templatesCache"/templates_*; do
         [ -r "$file" ] && cat "$file" >>"$xtra"
     done
-	
+
     # unique + sorted (portable)
 	tmp=$(mktemp) || msg error "Failed to create temp file"
     sort -u "$xtra" >"$tmp"
     mv "$tmp" "$xtra"
-	
+
     msg debug "Template merge completed."
     msg info "templates in void-packages: ${green}$(wc -l < "$templatesCache"/void_templates)${resetColour}"
     msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${resetColour}"
@@ -430,7 +430,7 @@ update_packages() {
 	fi
 	opInstall=1
 	packages="$templatesToUpdate"
-	install_packages 
+	install_packages
 	exit 0
 }
 
