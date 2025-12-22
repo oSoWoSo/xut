@@ -1,0 +1,190 @@
+name: "xut clitest"
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+
+  test:
+    runs-on: codeberg-medium
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      #options: --user runner
+      #env:
+       # SHELLSPEC_VERSION: '0.28.1'
+
+    steps:
+      - name: Install dependencies and create runner user
+        run: |
+          xbps-install -Syu xbps
+          xbps-install -yu
+          xbps-install -y bash curl git jq make ncurses nodejs shellcheck shfmt sudo xtools
+          # Add unprivileged 'runner' user
+          useradd -m -u 1000 -s /bin/sh runner
+          mkdir -p /home/runner
+          chown -R runner:runner /home/runner
+          chown -R runner:runner "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+          cd /home/runner
+          # Setup passwordless sudo for xi
+          echo "runner ALL=(ALL) NOPASSWD: ALL" | tee /etc/sudoers.d/runner
+          chmod 0440 /etc/sudoers.d/runner
+
+      - uses: actions/checkout@v4
+
+      - name: Debug Info
+        run: |
+          echo "ENV:"
+          env
+          echo
+          echo
+          echo "USER:"
+          whoami
+          echo
+          echo "ID:"
+          id
+          echo
+          echo 'PWD:'
+          pwd
+          su - runner -c "
+            echo 'runner ENV:'
+            env
+            echo
+            echo
+            echo 'runner USER:'
+            whoami
+            echo
+            echo 'runner ID:'
+            id
+            echo
+            echo 'PWD:'
+            pwd
+            "
+
+      - name: Fix permissions
+        id: permissions
+        run: |
+          chown -R runner:runner /home/runner
+          chown -R runner:runner "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+
+      - name: "Lint using shellcheck"
+        id: shellcheck_check
+        continue-on-error: true
+        run: |
+          su - runner -c "cd '/workspace/$FORGEJO_REPOSITORY_OWNER/xut' &&
+            shellcheck xut" | tee /tmp/shellcheck.txt 2>&1 || true
+          if [ -s /tmp/shellcheck.txt ]; then
+            echo "## ❌ Shellcheck Issues Found" >> $FORGEJO_STEP_SUMMARY
+            echo "" >> $FORGEJO_STEP_SUMMARY
+            echo '```bash' >> $FORGEJO_STEP_SUMMARY
+            cat /tmp/shellcheck.txt >> $FORGEJO_STEP_SUMMARY
+            echo '```' >> $FORGEJO_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: "Format check using shfmt"
+        id: shfmt_check
+        continue-on-error: true
+        run: |
+          su - runner -c "
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+          shfmt -d --apply-ignore -p -s -ci -kp xut"
+
+      - name: Apply shfmt fixes if needed
+        if: steps.shfmt_check.outcome == 'failure'
+        run: |
+          su - runner -c "
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+          echo 'Applying shfmt fixes...'
+          shfmt -w --apply-ignore -p -s -ci -kp xut"
+
+      - name: "Create or update PR with fixes if required"
+        if: steps.shellcheck_check.outcome == 'failure' || steps.shfmt_check.outcome == 'failure'
+        run: |
+          cd "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+          git config --global user.name "Forgejo Bot"
+          git config --global user.email "bot@forgejo.local"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            BASE_BRANCH="${{ github.ref_name }}"
+            BRANCH_NAME="auto-fix-formatting-${BASE_BRANCH}"
+
+            # Prepare commit message
+            COMMIT_MSG="🤖 Auto-fix: Code formatting and linting"
+            if [ "${{ steps.shellcheck_check.outcome }}" == "failure" ]; then
+              COMMIT_MSG="${COMMIT_MSG}"$'\n'"- Fixed shellcheck issues"
+            fi
+            if [ "${{ steps.shfmt_check.outcome }}" == "failure" ]; then
+              COMMIT_MSG="${COMMIT_MSG}"$'\n\n'"- Applied shfmt formatting"
+            fi
+
+            # Commit changes on current branch
+            git add -A
+            git commit -m "$COMMIT_MSG"
+
+            # Fetch to check if PR branch exists
+            git fetch origin
+
+            # Check if PR with this exact branch name already exists
+            EXISTING_PR=$(curl -s \
+              -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
+              "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls?state=open" \
+              | jq -r ".[] | select(.head.ref == \"$BRANCH_NAME\" and .base.ref == \"$BASE_BRANCH\") | .number // empty" \
+              | head -n1)
+
+            # Force push current branch to auto-fix branch
+            git push origin "HEAD:$BRANCH_NAME" --force
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "✓ Updated existing PR #$EXISTING_PR with new fixes"
+            else
+              # Create new PR
+              curl -X POST \
+                -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
+                -H "Content-Type: application/json" \
+                "https://codeberg.org/api/v1/repos/${{ github.repository }}/pulls" \
+                -d "{
+                  \"title\": \"🤖 Auto-fix: Code formatting (from $BASE_BRANCH)\",
+                  \"body\": \"This PR was automatically created by CI to fix formatting issues in branch \`$BASE_BRANCH\`.\\n\\n- shellcheck: ${{ steps.shellcheck_check.outcome }}\\n\\n- shfmt: ${{ steps.shfmt_check.outcome }}\\nThis PR will be automatically updated with new fixes as needed.\",
+                  \"head\": \"$BRANCH_NAME\",
+                  \"base\": \"$BASE_BRANCH\"
+                }"
+              echo "⚠️ Created new PR with fixes: $BRANCH_NAME"
+            fi
+          else
+            echo "✓ No changes to commit"
+          fi
+
+      - name: Setup clitest
+        run: |
+          # Use my fork with verbose and more colors
+          curl -sOL https://codeberg.org/oSoWoSo/clitest/raw/branch/main/clitest
+          chmod +x clitest
+          mv clitest /usr/bin
+
+      - name: pretest
+        run: |
+          git config --global --add safe.directory "/workspace/$FORGEJO_REPOSITORY_OWNER/xut"
+          echo "Current branch is: $(git branch --show-current)"
+          echo "tests content: $(ls tests/)"
+          echo "path is: $(pwd)"
+          su - runner -c "cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/tests/xut-tests.md /home/runner/"
+          cp tests/xut-tests.md ./
+
+      - name: xut clitest
+        continue-on-error: true
+        run: |
+          su - runner -c "
+            export FORGEJO_REPOSITORY_OWNER=$FORGEJO_REPOSITORY_OWNER
+            clitest --color always -v --pre-flight pwd -s 25 xut-tests.md"
+
+      - name: xut clitest as ROOT
+        continue-on-error: true
+        run: clitest --color always -v --pre-flight pwd -t 25 xut-tests.md
+
+      - name: xut clitest (xut README)
+        run: |
+          su - runner -c "
+            cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/README.md ./
+            clitest --color always -v README.md"

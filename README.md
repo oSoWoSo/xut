@@ -72,19 +72,53 @@ xut [options]
 
 ### Examples
 
+- Update packages after syncing repos:
+
+```shell
+xut -su
+```
+
+clitest
+```shell
+$ xut -su                  #=> --egrep ^Checking for updatable packages|No updates available
+```
+
 - Build packages (without installing them):
 ```shell
 xut -b package1,package2
 ```
 
-- Sync repos and install packages: 
+clitest
+```shell
+$ xut -b vpm,fzf           #=> --egrep Successfully build vpm,fzf!
+```
+
+- Sync repos and install packages:
 ```shell
 xut -si package1,package2
+```
+
+clitest
+```shell
+$ yes | xut -si vpm,fzf          #=> --exit 0
+$ command -v vpm
+/usr/bin/vpm
+$ command -v fzf
+/usr/bin/fzf
+$
 ```
 
 - Use the above command with logging enabled:
 ```shell
 xut -sli package1,package2
+```
+
+clitest
+```shell
+$ yes | xut -sli vsv,fastfetch   #=> --egrep vsv,fastfetch installed
+$ command -v vsv
+/usr/bin/vsv
+$ fastfetch                #=> --egrep OS: Void Linux
 ```
 
 - Execute an xbps-command in the merged repo:
@@ -93,8 +127,7 @@ xut -sli package1,package2
 xut -x <command>
 ```
 
-- Update packages after syncing repos:
-
+clitest
 ```shell
-xut -su
+$ xut -x -V                #=> --egrep ^xbps-src|XBPS|API|GIT
 ```
