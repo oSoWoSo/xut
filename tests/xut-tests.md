@@ -232,7 +232,7 @@ $
 Test number of lines in xut help
 
 ```bash
-$ xut -h                          #=> --lines 27
+$ xut -h                          #=> --lines 28
 ```
 
 ## Test 2 - xut sync
@@ -240,7 +240,7 @@ $ xut -h                          #=> --lines 27
 Test if xut sync repos correctly
 
 ```bash
-$ xut -s                          #=> --egrep Available templates
+$ xut -s                          #=> --egrep ^templates in void-packages:|restricted templates:|Templates in abyss-packages:
 ```
 
 ## Test 3 - xut sync with log
