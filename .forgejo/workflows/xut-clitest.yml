@@ -5,9 +5,34 @@ on:
   workflow_dispatch:
 
 jobs:
-
   test:
-    runs-on: codeberg-medium
+    runs-on: codeberg-tiny
+    #runs-on: codeberg-small
+    #runs-on: codeberg-medium
+
+# Available runners
+# Label            Arch  CPU  RAM Runtime  Notes
+# codeberg-tiny    amd64  1   2G  2 min    Intended for very lightweight jobs like linters and other helpers
+# codeberg-small   amd64  2   4G  5 min
+# codeberg-medium  amd64  4   6G  10 min
+
+# Warning
+# The RAM allocation includes writes to the filesystem.
+# If your container has 4GB of memory, writes 1GB of dependencies
+# and 1GB of temporary files during builds, only 2GB remain available for your actual software.
+
+# Lazy runners
+# For each runner variant, we offer a "lazy" runner.
+# It can generally have more delay in picking jobs, but will help us schedule jobs
+# based on load or energy availability. If your CI jobs can wait,
+# consider using this runner to optimize the load on our systems.
+
+# We aim for completing the job within 24 hours,
+# and we are considering experiments like offsite runners
+# which only run when solar energy is available.
+
+# You can select this runner by appending -lazy to the label, e.g. codeberg-tiny-lazy
+
     container:
       image: ghcr.io/void-linux/void-glibc-full
       #options: --user runner
@@ -177,14 +202,15 @@ jobs:
         run: |
           su - runner -c "
             export FORGEJO_REPOSITORY_OWNER=$FORGEJO_REPOSITORY_OWNER
-            clitest --color always -v --pre-flight pwd -s 25 xut-tests.md"
+            clitest --color always -s 25 xut-tests.md"
 
       - name: xut clitest as ROOT
         continue-on-error: true
-        run: clitest --color always -v --pre-flight pwd -t 25 xut-tests.md
+        run: clitest --color always -t 25 xut-tests.md
 
-      - name: xut clitest (xut README)
+      - name: xut clitest (xut README) + verbose
         run: |
           su - runner -c "
             cp /workspace/$FORGEJO_REPOSITORY_OWNER/xut/README.md ./
+            export FORCE_COLOR=1
             clitest --color always -v README.md"
