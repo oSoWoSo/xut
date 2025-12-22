@@ -22,7 +22,9 @@ root_check() {
 
 set_colours() {
 	# Set colour codes and provide fallback
-	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then # make tput(1) optional, respect $NO_COLOR
+	# make tput(1) optional, respect $NO_COLOR
+	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ] ||
+		[ "$FORCE_COLOR:-0" -eq 1 ]; then
 		green=$(tput setaf 2)
 		red=$(tput setaf 1)
 		yellow=$(tput setaf 3)
