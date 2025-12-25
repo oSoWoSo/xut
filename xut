@@ -22,10 +22,22 @@ root_check() {
 
 set_colours() {
 	# Set colour codes and provide fallback
-	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then # make tput(1) optional, respect $NO_COLOR
-		green=$(tput setaf 2);red=$(tput setaf 1);yellow=$(tput setaf 3)
-		fade=$(tput dim);bold=$(tput bold);resetColour=$(tput sgr0)
-	else green="";red="";yellow="";fade="";bold="";resetColour="";fi
+	# make tput(1) optional, respect $NO_COLOR
+	if command -v tput >/dev/null 2>&1 && [ -z "${NO_COLOR+x}" ] && [ -t 0 ]; then
+		green=$(tput setaf 2)
+		red=$(tput setaf 1)
+		yellow=$(tput setaf 3)
+		fade=$(tput dim)
+		bold=$(tput bold)
+		resetColour=$(tput sgr0)
+	else
+		green=""
+		red=""
+		yellow=""
+		fade=""
+		bold=""
+		resetColour=""
+	fi
 }
 
 set_default_vars() {
@@ -33,15 +45,15 @@ set_default_vars() {
 	xutVersion=0.4.3-dev
 	readonly xutVersion
 
-	opLog=0       #Controls the appearance of debug messages for the user (-l)
-	opQuery=0     #Search for templates (-q)
-	opBuild=0     #Build packages, ( -b).
-	opInstall=0   #Install packages (-i <package1,package2>)
-	opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
-	opUpdate=0    #Update sw from updated templates (-u)
-	opSync=0      #Sync repos
-	opIntegrate=0 #Intergrate all templates into a merged repo.
-	opForeignHost=0	#Detection of non-Voidlinux host system.
+	opLog=0         # Controls the appearance of debug messages for the user (-l)
+	opQuery=0       # Search for templates (-q)
+	opBuild=0       # Build packages, ( -b).
+	opInstall=0     # Install packages (-i <package1,package2>)
+	opXbpsSrc=""    # Contains the xbps-src command to be given after the -x argument
+	opUpdate=0      # Update sw from updated templates (-u)
+	opSync=0        # Sync repos
+	opIntegrate=0   # Intergrate all templates into a merged repo.
+	opForeignHost=0 # Detection of non-Voidlinux host system.
 
 	# Initialise empty vars
 	templatesToUpdate=""
@@ -119,10 +131,10 @@ set_default_configuration() {
 usage() {
 	# Display basic tui information
 	printf "%s\n" "${green}${bold}
-            _   
-__  ___   _| |_ 
+            _
+__  ___   _| |_
 \ \/ / | | | __|
- >  <| |_| | |_ 
+ >  <| |_| | |_
 /_/\_\\__,_|\__| ${resetColour}"
 printf "%s\n" "${yellow}${bold}
 *x*tra *u*ser *t*emplates
@@ -134,7 +146,7 @@ OPTIONS
  -s                      Sync the repos.
  -l                      Keep a log file under $confLogDir.
  -h                      Display this usage information.
- -d						 Enable debugging and logging output.
+ -d                      Enable debugging and logging output.
  -b <package1,package2>  Build a list of (comma-separated) packages.
  -i <package1,package2>  Build and install a list of (comma-separated) packages.
  -x                      Give xbps-src commands.
@@ -155,7 +167,7 @@ find_repodir() {
 
     url=$1
 
-    # ---------- FAST PATH ---------- 
+    # ---------- FAST PATH ----------
    cached=$(awk -F'|' -v url="$url" '
     $1 == url {
         print $2
@@ -207,20 +219,20 @@ create_template_list() {
 	# ${1} and stores it in ${2}. Checks if dirs contain template files.
 	msg debug "Creating template list for ${1} in ${2}..."
 	dir="$1"
-    out="$2"
-    [ -d "$dir" ] || msg error "Directory $dir does not exist!"
-    : > "$out"
-    # Loop over possible template files
-    for tpl in "$dir"/*/template; do
-        [ -f "$tpl" ] || continue
-        pkgdir="${tpl%/template}"
-        printf "%s\n" "${pkgdir##*/}" >> "$out"
-    done
+	out="$2"
+	[ -d "$dir" ] || msg error "Directory $dir does not exist!"
+	: > "$out"
+	# Loop over possible template files
+	for tpl in "$dir"/*/template; do
+		[ -f "$tpl" ] || continue
+		pkgDir="${tpl%/template}"
+		printf "%s\n" "${pkgDir##*/}" >> "$out"
+	done
 }
 
 extract_verrev() {
 	# Get version_revision from ${1}
-    awk -F= '
+	awk -F= '
         /version=/ {
             ver=$2
             gsub(/"/,"",ver)
@@ -238,6 +250,14 @@ include_additional_repos() {
 	reposList="$defaultRepo"
 	#shellcheck disable=SC2154
 	for xtraRepo in $additionalRepos; do
+		case "$xtraRepo" in
+			http://*|https://*) ;;
+			*)
+				msg error "Invalid repo entry: '$xtraRepo'
+Each repo must be a URL beginning with http:// or https://
+Fix your 'additionalRepos' configuration."
+				;;
+		esac
 		reposList="$reposList $xtraRepo"
 	done
 	reposList="$reposList $repoAbyssPackages"
@@ -304,82 +324,76 @@ should_copy_template() {
 merge_xtra_templates() {
 	# Merge all available template directories to a temporary directory,
 	# With intelligent version-based conflict resolution.
-    for repo in $reposList; do
-        find_repodir "$repo"
-        repoName="${repo##*/}"
+	for repo in $reposList; do
+		find_repodir "$repo"
+		repoName="${repo##*/}"
 
-        if [ "$repo" = "$defaultRepo" ]; then
-            default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD \
-             | sed 's|origin/||')
-            git -C "$confWorkdir/$repodir" checkout "$default_branch" \
-             || msg error "Cannot switch to $default_branch"
+		if [ "$repo" = "$defaultRepo" ]; then
+			default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD |
+			 sed 's|origin/||')
+			git -C "$confWorkdir/$repodir" checkout "$default_branch" ||
+			 msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
 			# Create template lists from a clean checkout.
-            git -C "$confWorkdir/$repodir" clean -fd >/dev/null 2>&1  \
-            || msg error "Cannot clean $confWorkdir/$repodir"
-            xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n \
-            | sort > "$templatesCache"/void_templates
+			git -C "$confWorkdir/$repodir" clean -fd >/dev/null 2>&1 ||
+			 msg error "Cannot clean $confWorkdir/$repodir"
+			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n |
+			 sort > "$templatesCache"/void_templates
 			# Create template list for restricted packages, in order to include them in update discovery and updates.
-            grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" \
-             | awk -F '/' '{print $(NF-1)}' > "$templatesCache/templates_restricted-packages"
-            continue
-        fi
-
-        msg info "Merging templates from ${green}${bold}$repo${resetColour}"
-        searchPath="$confWorkdir/$repodir"
-        [ -d "$searchPath/srcpkgs" ] && searchPath="$searchPath/srcpkgs"
-        msg debug "Searching in $searchPath"
-		# Create xtra repo templates list
-		# Show progress during template processing
-        create_template_list "$searchPath" "$templatesCache/templates_$repoName"
-
-        processed=0
-		# Process templates
-        # POSIX-safe: loop over directories, follow symlinks
-        for dir in "$searchPath"/*; do
-            [ -d "$dir" ] || continue          # skip non-directories
-            [ -e "$dir/template" ] || continue  # skip dirs without template
-
-            templateName="${dir##*/}"
-            sourceTemplate="$dir/template"
-            destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
-
-            processed=$((processed + 1))
-            printf "\r%5d " "$processed"
-
-            if should_copy_template "$sourceTemplate" "$destTemplate"; then
-            	# Remove from mergedDir if it already exists
-                [ -d "$mergedDir/$templateName" ] && rm -rf "${mergedDir:?}/$templateName"
-                cp -r "$dir" "$mergedDir" || msg error "Cannot merge templates"
-            fi
-        done
-        printf "\n"
-    done
+			grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
+		else
+			msg info "Merging templates from ${green}${bold}$repo${resetColour}"
+			searchPath="$confWorkdir/$repodir"
+			if [ -d "$confWorkdir/$repodir/srcpkgs" ]; then
+				searchPath="$confWorkdir/$repodir/srcpkgs"
+			fi
+			msg debug "Searching in $searchPath"
+			# Create xtra repo templates list
+			# Show progress during template processing
+			create_template_list "$searchPath" "$templatesCache/templates_$repoName"
+			processed=0
+			# Process templates
+			find "$searchPath" -maxdepth 2 -type f -name template | while IFS= read -r template; do
+				[ -f "$template" ] || continue
+				dir="${template%/template}"
+				processed=$((processed + 1))
+				printf "\r%5d " "$processed"
+				templateName="${dir##*/}"
+				sourceTemplate="$dir/template"
+				destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
+				if should_copy_template "$sourceTemplate" "$destTemplate"; then
+					# Remove from mergedDir if it already exists
+					[ -d "$mergedDir/$templateName" ] && rm -rf "${mergedDir:?}/$templateName"
+					cp -r "$dir" "$mergedDir" || msg error "Cannot merge templates"
+				fi
+			done
+			printf "\n"
+		fi
+	done
 }
 
-
 generate_all_template_lists() {
-    msg info "Generating template lists..."
+	msg info "Generating template lists..."
 
-    # Ensure template merge has happened 
-    [ -r "$templatesCache/templates_restricted-packages" ] || merge_xtra_templates
+	# Ensure template merge has happened
+	[ -r "$templatesCache/templates_restricted-packages" ] || merge_xtra_templates
 
-    # --- xtra template list (merging templates_*) ---
-    xtra="$templatesCache/xtra_templates"
-    : >"$xtra"
+	# --- xtra template list (merging templates_*) ---
+	xtra="$templatesCache/xtra_templates"
+	: >"$xtra"
 
-    for file in "$templatesCache"/templates_*; do
-        [ -r "$file" ] && cat "$file" >>"$xtra"
-    done
-	
-    # unique + sorted (portable)
+	for file in "$templatesCache"/templates_*; do
+		[ -r "$file" ] && cat "$file" >>"$xtra"
+	done
+
+	# unique + sorted (portable)
 	tmp=$(mktemp) || msg error "Failed to create temp file"
-    sort -u "$xtra" >"$tmp"
-    mv "$tmp" "$xtra"
-	
-    msg debug "Template merge completed."
-    msg info "templates in void-packages: ${green}$(wc -l < "$templatesCache"/void_templates)${resetColour}"
-    msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${resetColour}"
-    for repo in $reposList; do
+	sort -u "$xtra" >"$tmp"
+	mv "$tmp" "$xtra"
+
+	msg debug "Template merge completed."
+	msg info "templates in void-packages: ${green}$(wc -l < "$templatesCache"/void_templates)${resetColour}"
+	msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${resetColour}"
+	for repo in $reposList; do
 		find_repodir "$repo"
 		if [ "$repo" != "$defaultRepo" ]; then
 			repoName="${repo##*/}"
@@ -458,13 +472,13 @@ discover_updates() {
 	toBeUpdated="$templatesCache/toBeUpdated"
 	: >"$toBeUpdated"
 	xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %n \
-     >"$toBeUpdated"
+	 >"$toBeUpdated"
 	tmp2=$(mktemp)
 	sort -u "$toBeUpdated" >"$tmp2"
 	mv "$tmp2" "$toBeUpdated"
 	# Intersection of sorted lists (comm requires sorting)
 	comm -1 -2 "$toBeUpdated" "$xtraTemplatesFile" \
-     >"$templatesCache/templatesToUpdate"
+	 >"$templatesCache/templatesToUpdate"
 	# Convert file into space-separated list
 	templatesToUpdate=$(tr '\n' ' ' < "$templatesCache/templatesToUpdate")
 	export templatesToUpdate
@@ -481,7 +495,7 @@ update_packages() {
 	fi
 	opInstall=1
 	packages="$templatesToUpdate"
-	install_packages 
+	install_packages
 	exit 0
 }
 
@@ -507,14 +521,15 @@ build_packages() {
 	prepare_for_build
 	packageList="$(echo "$packages" | tr ',' ' ')"
 	export packageList
+
 	# Check if templates exist - provide a better message than the
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
 		if [ ! -d "$confWorkdir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
-		#shellcheck disable=SC2030 
-		#modification in the subshell is intended
-		msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...		
  $(opQuery=1 ; templateQuery=$template ; search_templates)" ; fi ;done
+			#shellcheck disable=SC2030
+			#modification in the subshell is intended
+			msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...
 	for package in $packageList; do
 		cd "$confWorkdir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
 		cmdStatus=$?
@@ -547,8 +562,8 @@ main() {
 	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
 	generate_all_template_lists
 	[ "$opUpdate" -eq 0 ] || update_packages
-	#shellcheck disable=SC2031 
-	#modification in the subshell in build_packages is intended
+	#shellcheck disable=SC2031
+	# Modification in the subshell in build_packages is intended
 	[ "$opQuery" -eq 0 ] || search_templates
 	[ "$opBuild" -eq 0 ] || build_packages
 	install_packages
