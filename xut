@@ -30,7 +30,7 @@ set_colours() {
 
 set_default_vars() {
 	# Change version to newer after every update
-	xutVersion=0.4.1-dev
+	xutVersion=0.4.2
 	readonly xutVersion
 
 	opLog=0       #Controls the appearance of debug messages for the user (-l)
