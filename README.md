@@ -17,8 +17,9 @@ That created a well-maintained and curated repository by the distribution develo
 the inclusion of software that the same maintainers decide - for entirely valid reasons - to not accept.
 
 `xut` tries to provide a solution for users that need more packages that cannot be provided in the
-official repos. It clones both the void-packages and [abyss-packages repository](https://codeberg.org/mobinmob/abyss-packages) (and possibly other third party repos),
- merges the templates from unofficial repos to the clone of void-packages and installs sw **with a single command.**
+official repos. It clones the void-packages, the [abyss-packages repository](https://codeberg.org/mobinmob/abyss-packages)
+and possibly other third party repos,  merges the templates from unofficial repos to the clone of void-packages
+and installs or updates sw **with a single command.**
  
 ### Install and setup
 
@@ -46,8 +47,7 @@ are supported in gnu coreutils, busybox and the bsd userland (additional argumen
 
 - [ ] Deal with shlibs in order to package more complex sw or modified packages from the upstream repos.
 - [x] Implement a way to handle package updates gracefully. [**-u argument**]
-- [x] Search for a practical way to enable more than one unofficial repos ~[**naive implementation merged from the manyrepos branch**]~
-(Inteligent merging by @zenobit available from 0.4.0).
+- [x] Search for a practical way to enable more than one unofficial repos (Inteligent merging by @zenobit available from 0.4.1).
 - [ ] ... (suggestions are welcome, working code even more welcome)
 
 ### Usage
