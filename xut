@@ -46,14 +46,14 @@ set_default_vars() {
 	xutVersion=0.4.2
 	readonly xutVersion
 
-	opLog=0         # Controls the appearance of debug messages for the user (-l)
-	opQuery=0       # Search for templates (-q)
-	opBuild=0       # Build packages, ( -b).
-	opInstall=0     # Install packages (-i <package1,package2>)
-	opXbpsSrc=""    # Contains the xbps-src command to be given after the -x argument
-	opUpdate=0      # Update sw from updated templates (-u)
-	opSync=0        # Sync repos
-	opIntegrate=0   # Intergrate all templates into a merged repo.
+	opLog=0       # Controls the appearance of debug messages for the user (-l)
+	opQuery=0     # Search for templates (-q)
+	opBuild=0     # Build packages, ( -b).
+	opInstall=0   # Install packages (-i <package1,package2>)
+	opXbpsSrc=""  # Contains the xbps-src command to be given after the -x argument
+	opUpdate=0    # Update sw from updated templates (-u)
+	opSync=0      # Sync repos
+	opIntegrate=0 # Intergrate all templates into a merged repo.
 	opForeignHost=0 # Detection of non-Voidlinux host system.
 
 	# Initialise empty vars
@@ -223,8 +223,8 @@ include_additional_repos() {
 				msg error "Invalid repo entry: '$xtraRepo'
 Each repo must be a URL beginning with http:// or https://
 Fix your 'additionalRepos' configuration."
-                ;;
-        esac
+				;;
+		esac
 		reposList="$reposList $xtraRepo"
 	done
 	reposList="$reposList $repoAbyssPackages"
@@ -490,10 +490,16 @@ build_packages() {
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
 		if [ ! -d "$confWorkdir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
-		#shellcheck disable=SC2030 
-		#modification in the subshell is intended
-		msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...		
- $(opQuery=1 ; templateQuery=$template ; search_templates)" ; fi ;done
+			#shellcheck disable=SC2030
+			#modification in the subshell is intended
+			msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...		
+ $(
+				opQuery=1
+				templateQuery=$template
+				search_templates
+			)"
+		fi
+	done
 	for package in $packageList; do
 		cd "$confWorkdir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
 		cmdStatus=$?
@@ -526,7 +532,7 @@ main() {
 	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
 	generate_all_template_lists
 	[ "$opUpdate" -eq 0 ] || update_packages
-	#shellcheck disable=SC2031 
+	#shellcheck disable=SC2031
 	#modification in the subshell in build_packages is intended
 	[ "$opQuery" -eq 0 ] || search_templates
 	[ "$opBuild" -eq 0 ] || build_packages
