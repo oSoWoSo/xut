@@ -24,7 +24,7 @@ official repos. It clones both the void-packages and [abyss-packages repository]
 1. Clone this repo, run the `xut` command directly from the clone or install using the Makefile.
 2. Use the xutconf.sample if you want to modify configuration.
 3. The script depends on:
-   - `sh` and the  posix userland,
+   - `sh` and the  posix userland **(*)**,
    - `xbps >= 0.60`,
    - `git`,
    - `mktemp`,
@@ -32,9 +32,14 @@ official repos. It clones both the void-packages and [abyss-packages repository]
    (for installation/update).
    - the `tput` tool from _ncurses_ (optional).
 
-	Note that `xut` _will run in other distributions_ that have the above tools available,
-	but installing (-i) and upgrading (-u) packages is disabled. In this case, `xi` is
-   not needed.
+>Note that `xut` _will run in other distributions_ that have the above tools available,
+but installing (-i) and upgrading (-u) packages is disabled. In this case, `xi` is
+not needed.
+   
+>**(*)** `xut` uses posix sh and tries to use only the posix userland utilities. The `local` 
+keyword may be used in the future, but effort is being made to use only the extensions that 
+are supported in gnu coreutils, busybox and the bsd userland (additional arguments).
+   
 
 ### Todo
 
