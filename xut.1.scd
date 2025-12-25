@@ -6,7 +6,7 @@ XUT(1)
 
 # SYNOPSIS
 
-*xut* [-ls] [-h] [-u ]  [-b _packages1,package2,..._ | -i _packages1,package2,..._] [-x <xbps-src command>] [-q <query>]
+*xut* [-lsd] [-h] [-u ]  [-b _packages1,package2,..._ | -i _packages1,package2,..._] [-x <xbps-src command>] [-q <query>]
 
 # DESCRIPTION
 
@@ -23,6 +23,9 @@ additional software for a void-linux installation.
 
 *-h*
 	Display usage information.
+	
+*-d*
+	Enable debugging and logging output.
 
 *-b <package1,package2>*
 	Build a list of (comma-seperated) packages.
@@ -52,6 +55,9 @@ additional software for a void-linux installation.
 	
 	*CONF_WORKDIR* accepts a path to a directory and xut uses it as 
 	a working directory, overriding the configuration.
+	
+	*XUT_TMPDIR* accepts a path to a directory that xut uses for temporary
+	files, overriding the default (/tmp).
 		
 # CONFIGURATION
 
