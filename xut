@@ -65,7 +65,9 @@ distribution_sanity_check() {
 	#shellcheck disable=SC1091
 	[ -r /etc/os-release ] && . /etc/os-release
 	if [ -z "$NAME" ] || [ "$NAME" != "Void" ]; then
-		opUpdate=0; opInstall=0; opForeignHost=1
+		opUpdate=0
+		opInstall=0
+		opForeignHost=1
 		msg info "[xut] is not running under Void Linux. Install and update operations are disabled."
 	else
 		msg debug "Running on Void linux, all systems go!"
@@ -76,7 +78,8 @@ msg() {
 	# Use colour-coded messages for informational, warning, and error output ${1} is the message type,
 	# ${2} is the message content needs to be here, all messages depend on it.
 	if [ "${1}" = "error" ]; then
-		printf "%s\n" "${red}${bold}(!!) Error:${resetColour} ${bold}${2}${resetColour}" ; exit 1
+		printf "%s\n" "${red}${bold}(!!) Error:${resetColour} ${bold}${2}${resetColour}"
+		exit 1
 	elif [ "${1}" = "warn" ]; then
 		printf "%s\n" "${yellow}${bold}(~~) Warning:${resetColour} ${bold}${2} ${resetColour}"
 	elif [ "${1}" = "info" ]; then
@@ -84,7 +87,8 @@ msg() {
 	elif [ "${1}" = "debug" ]; then
 		[ "$opLog" -eq 1 ] && printf "%s\n" "${fade}(<>) Debug : ${2} ${resetColour}"
 	else
-		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${resetColour}" ; exit 1
+		printf "%s\n" "${red}(!!) Error: ${1} is not recognised for msg() ${resetColour}"
+		exit 1
 	fi
 }
 
@@ -473,10 +477,16 @@ build_packages() {
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
 		if [ ! -d "$confWorkdir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
- $(opQuery=1 ; templateQuery=$template ; search_templates)" ; fi ;done
 			#shellcheck disable=SC2030
 			#modification in the subshell is intended
 			msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...
+ $(				opQuery=1
+				templateQuery=$template
+				search_templates
+			)"
+		fi
+	done
+
 	for package in $packageList; do
 		cd "$confWorkdir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
 		cmdStatus=$?
@@ -532,14 +542,17 @@ while getopts "slhudb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) opSync=1 ;;
 		l) opLog=1 ;;
-		d) opLog=1; set -x ;;
+		d) opLog=1
+			set -x ;;
 		b) packages="$OPTARG"; opBuild=1 ;;
 		i) packages="$OPTARG"; opInstall=1 ;;
 		x) opXbpsSrc="$OPTARG"; xbps_src_command ;;
 		q) templateQuery="$OPTARG"; opQuery=1 ;;
 		u) opUpdate=1 ;;
-		h) usage ; exit 0;;
-		*) usage ; exit 1;;
+		h) usage
+			exit 0 ;;
+		*) usage
+			exit 1 ;;
 	esac
 done
 shift $((OPTIND - 1))
