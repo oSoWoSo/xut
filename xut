@@ -111,7 +111,7 @@ set_default_configuration() {
 	repoAbyssPackages=https://codeberg.org/mobinmob/abyss-packages
 	readonly repoAbyssPackages
 	find_repodir "$defaultRepo"
-	defaultRepoDir="$repodir"
+	defaultRepoDir="$repoDir"
 	readonly defaultRepoDir
 	[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
 	[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
@@ -164,58 +164,8 @@ OPTIONS
 }
 
 find_repodir() {
-    : "${XUT_TMP:=/tmp}/xut_tmp"
-    repodir_cache="$XUT_TMP/repodir.cache"
-
-    # ensure cache file exists
-    [ -f "$repodir_cache" ] || : > "$repodir_cache"
-
-    url=$1
-
-    # ---------- FAST PATH ----------
-   cached=$(awk -F'|' -v url="$url" '
-    $1 == url {
-        print $2
-        exit
-    }
-' "$repodir_cache")
-
-    if [ -n "$cached" ]; then
-        repodir=$cached
-        return 0
-    fi
-
-    # ---------- SLOW PATH ----------
-
-    # normalize url
-    u=${url%/}
-    u=${u#*://}
-    u=${u#*@}
-
-    case "$u" in
-        *:*) u=${u%%:*}/${u#*:} ;;
-    esac
-
-    path=${u%.git}
-
-    # make filesystem-safe name
-    # translate separators → underscore, then strip invalid
-    safe=$(printf '%s\n' "$path" \
-        | tr '/:@' '___' \
-        | tr -cd 'A-Za-z0-9._-')
-
-    # POSIX hash via cksum
-    # get first field from command substitution
-    set -- "$(printf '%s\n' "$path" | cksum)"
-    sum=$1
-
-    # decimal → hex using POSIX printf
-    hash=$(printf "%x" "$sum")
-
-    repodir=_${safe}_${hash}
-
-    # append atomically (POSIX redirect append)
-    printf '%s|%s\n' "$url" "$repodir" >> "$repodir_cache"
+	# Define a proper (no slashes...) directory name for a remote git repo
+	repoDir=$(rdlast="${1%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
 }
 
 
@@ -272,13 +222,13 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	for repo in $reposList; do
 		find_repodir "$repo"
-		if [ ! -d "$confWorkdir/$repodir"/.git ]; then
+		if [ ! -d "$confWorkDir/$repoDir"/.git ]; then
 			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$confWorkdir/$repodir" || msg error "Cannot clone $repo repo."
+			git clone --depth 1 "$repo" "$confWorkdir/$repoDir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
 			opIntegrate=1
 		else
-			msg debug "$repo already exists in $confWorkdir/$repodir !"
+			msg debug "$repo already exists in $repoDir !"
 		fi
 	done
 }
@@ -289,11 +239,11 @@ sync_repos() {
 	for repo in $reposList; do
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
-		currentBranch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short HEAD 2>/dev/null)
-		default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||') # that is not 100% correct, should fix
-		git -C "$confWorkdir/$repodir" checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+		currentBranch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short HEAD 2>/dev/null)
+		default_branch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||') # that is not 100% correct, should fix
+		git -C "$confWorkdir/$repoDir" checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
 		msg debug "Switched to $default_branch"
-		git -C "$confWorkdir/$repodir" pull "$repo"  || msg error "Cannot sync to $repo"
+		git -C "$confWorkdir/$repoDir" pull "$repo"  || msg error "Cannot sync to $repo"
 		msg info "$repo synced"
 	done
 	opIntegrate=1
@@ -334,22 +284,20 @@ merge_xtra_templates() {
 		repoName="${repo##*/}"
 
 		if [ "$repo" = "$defaultRepo" ]; then
-			default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD |
-			 sed 's|origin/||')
-			git -C "$confWorkdir/$repodir" checkout "$default_branch" ||
-			 msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+			default_branch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD \
+			 | sed 's|origin/||')
+			git -C "$confWorkdir/$repoDir" checkout "$default_branch" \
+			 || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
 			# Create template lists from a clean checkout.
-			git -C "$confWorkdir/$repodir" clean -fd >/dev/null 2>&1 ||
-			 msg error "Cannot clean $confWorkdir/$repodir"
-			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n |
-			 sort > "$templatesCache"/void_templates
+			git -C  "$confWorkdir/$repoDir" clean -fd > /dev/null 2>&1 || msg error "Cannot clean $confWorkdir/$repoDir repo."
+			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n | sort > "$templatesCache"/void_templates
 			# Create template list for restricted packages, in order to include them in update discovery and updates.
 			grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
 		else
 			msg info "Merging templates from ${green}${bold}$repo${resetColour}"
-			searchPath="$confWorkdir/$repodir"
-			if [ -d "$confWorkdir/$repodir/srcpkgs" ]; then
-				searchPath="$confWorkdir/$repodir/srcpkgs"
+			searchPath="$confWorkdir/$repoDir"
+			if [ -d "$confWorkdir/$repoDir/srcpkgs" ]; then
+				searchPath="$confWorkdir/$repoDir/srcpkgs"
 			fi
 			msg debug "Searching in $searchPath"
 			# Create xtra repo templates list
