@@ -123,14 +123,14 @@ set_default_configuration() {
 	# Check for needed dirs.
 	[ ! -e "$confLogDir" ] && mkdir -p "$confLogDir"
 	readonly logFile
-	XUT_TMP="${XUT_TMPDIR:-/tmp}/xut_tmp" # Use tmpfs for hotspots, adjust if user has XUT_TMPDIR set.
-	templatesCache="$XUT_TMP/templates"
-	mkdir -p "$XUT_TMP/templates" || msg error "Cannot create tmpfs workspace $XUT_TMP/templates"
+	xutTmp="${XUT_TMPDIR:-/tmp}/xut_tmp" # Use tmpfs for hotspots, adjust if user has XUT_TMPDIR set.
+	templatesCache="$xutTmp/templates"
+	mkdir -p "$xutTmp/templates" || msg error "Cannot create tmpfs workspace $xutTmp/templates"
 	# Merged templates directory
 	mergedDir=$(mktemp -d "${XUT_TMPDIR:-/tmp}/merged.XXXXXX") ||
 	 msg error "Cannot create $mergedDir"
 	# Cleanup on exit
-	trap '[ -n "$mergedDir" ] && rm -rf "$mergedDir" "$XUT_TMP/templates"' EXIT INT TERM
+	trap '[ -n "$mergedDir" ] && rm -rf "$mergedDir" "$xutTmp/templates"' EXIT INT TERM
 }
 
 usage() {
