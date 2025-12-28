@@ -5,7 +5,7 @@
 
 # conf_workdir is the directory where xut works. It is $HOME/.xut by default.
 # You can uncomment and change to a different dir if you want to.
-confWorkdir="${HOME}/.xut"
+workDir="${HOME}/.xut"
 
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the

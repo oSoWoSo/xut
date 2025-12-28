@@ -113,11 +113,11 @@ set_default_configuration() {
 	find_repodir "$defaultRepo"
 	defaultRepoDir="$repoDir"
 	readonly defaultRepoDir
-	[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
-	[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
+	[ -n "$XUT_WORKDIR" ] && workDir="$XUT_WORKDIR" && msg info "Using $workDir as working directory."
+	[ -z "$workDir" ] && workDir="$HOME"/.xut
 
 	# Define a log filename
-	confLogDir="$confWorkdir/logs"
+	confLogDir="$workDir/logs"
 	logFile="$confLogDir/xut_$(date +"%Y%m%d_%H%M%S").log"
 
 	# Check for needed dirs.
@@ -222,9 +222,9 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	for repo in $reposList; do
 		find_repodir "$repo"
-		if [ ! -d "$confWorkDir/$repoDir"/.git ]; then
+		if [ ! -d "$workDir/$repoDir"/.git ]; then
 			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$confWorkdir/$repoDir" || msg error "Cannot clone $repo repo."
+			git clone --depth 1 "$repo" "$workDir/$repoDir" || msg error "Cannot clone $repo repo."
 			msg debug "Successfully cloned $repo !"
 			opIntegrate=1
 		else
@@ -239,11 +239,11 @@ sync_repos() {
 	for repo in $reposList; do
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
-		currentBranch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short HEAD 2>/dev/null)
-		default_branch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||') # that is not 100% correct, should fix
-		git -C "$confWorkdir/$repoDir" checkout "$default_branch" || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
-		msg debug "Switched to $default_branch"
-		git -C "$confWorkdir/$repoDir" pull "$repo"  || msg error "Cannot sync to $repo"
+		currentBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short HEAD 2>/dev/null)
+		defaultBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||') # that is not 100% correct, should fix
+		git -C "$workDir/$repoDir" checkout "$defaultBranch" || msg error "Cannot switch to $defaultBranch. Probably uncommitted changes on $currentBranch?"
+		msg debug "Switched to $defaultBranch"
+		git -C "$workDir/$repoDir" pull "$repo"  || msg error "Cannot sync to $repo"
 		msg info "$repo synced"
 	done
 	opIntegrate=1
@@ -284,20 +284,20 @@ merge_xtra_templates() {
 		repoName="${repo##*/}"
 
 		if [ "$repo" = "$defaultRepo" ]; then
-			default_branch=$(git -C "$confWorkdir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD \
+			defaultBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD \
 			 | sed 's|origin/||')
-			git -C "$confWorkdir/$repoDir" checkout "$default_branch" \
-			 || msg error "Cannot switch to $default_branch. Probably uncommitted changes on $currentBranch?"
+			git -C "$workDir/$repoDir" checkout "$defaultBranch" \
+			 || msg error "Cannot switch to $defaultBranch. Probably uncommitted changes on $currentBranch?"
 			# Create template lists from a clean checkout.
-			git -C  "$confWorkdir/$repoDir" clean -fd > /dev/null 2>&1 || msg error "Cannot clean $confWorkdir/$repoDir repo."
-			xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n | sort > "$templatesCache"/void_templates
+			git -C  "$workDir/$repoDir" clean -fd > /dev/null 2>&1 || msg error "Cannot clean $workDir/$repoDir repo."
+			xbps-checkvers -s -D "$workDir/$defaultRepoDir" -f %n | sort > "$templatesCache"/void_templates
 			# Create template list for restricted packages, in order to include them in update discovery and updates.
-			grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
+			grep -lr "restricted=yes" "$workDir/$defaultRepoDir/srcpkgs/" | awk -F '/' '{print $(NF-1)}' >"$templatesCache/templates_restricted-packages"
 		else
 			msg info "Merging templates from ${green}${bold}$repo${resetColour}"
-			searchPath="$confWorkdir/$repoDir"
-			if [ -d "$confWorkdir/$repoDir/srcpkgs" ]; then
-				searchPath="$confWorkdir/$repoDir/srcpkgs"
+			searchPath="$workDir/$repoDir"
+			if [ -d "$workDir/$repoDir/srcpkgs" ]; then
+				searchPath="$workDir/$repoDir/srcpkgs"
 			fi
 			msg debug "Searching in $searchPath"
 			# Create xtra repo templates list
@@ -312,7 +312,7 @@ merge_xtra_templates() {
 				printf "\r%5d " "$processed"
 				templateName="${dir##*/}"
 				sourceTemplate="$dir/template"
-				destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
+				destTemplate="$workDir/$defaultRepoDir/srcpkgs/$templateName/template"
 				if should_copy_template "$sourceTemplate" "$destTemplate"; then
 					# Remove from mergedDir if it already exists
 					[ -d "$mergedDir/$templateName" ] && rm -rf "${mergedDir:?}/$templateName"
@@ -364,13 +364,13 @@ integrate_xtra_templates() {
 		msg debug "Cleaning older package directories from void-packages"
 		for mergedPkg in "$mergedDir"/*; do
 			pkgName="${mergedPkg##*/}"
-			originalPkg="$confWorkdir/$defaultRepoDir/srcpkgs/$pkgName"
+			originalPkg="$workDir/$defaultRepoDir/srcpkgs/$pkgName"
 			if [ -d "$originalPkg" ]; then
 				msg debug "Removing old package directory: $pkgName"
 				rm -rf "$originalPkg" || msg error "Cannot remove $originalPkg"
 			fi
 		done
-		cp -r "$mergedDir"/* "$confWorkdir/$defaultRepoDir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
+		cp -r "$mergedDir"/* "$workDir/$defaultRepoDir/srcpkgs/" || msg error "Cannot copy templates to srcpkgs"
 		msg info "Merged templates copied to srcpkgs"
 	else
 		msg info "No new or updated templates to merge"
@@ -379,7 +379,7 @@ integrate_xtra_templates() {
 
 xbps_src_command() {
 	# Give xbps-src commands directly to the merged repository.
-	cd "$confWorkdir/$defaultRepoDir" || msg error "Cannot change directory into $defaultRepoDir"
+	cd "$workDir/$defaultRepoDir" || msg error "Cannot change directory into $defaultRepoDir"
 	[ -n "$opXbpsSrc" ] || msg error "No xbps-src arguments!"
 	./xbps-src "$opXbpsSrc" || msg error "Cannot execute <xbps-src $opXbpsSrc>"
 	msg info "[./xbps-src $opXbpsSrc] executed successfully!" && exit 0
@@ -424,7 +424,7 @@ discover_updates() {
 	#Build list of templates to be updated
 	toBeUpdated="$templatesCache/toBeUpdated"
 	: >"$toBeUpdated"
-	xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %n \
+	xbps-checkvers -I -D "$workDir/$defaultRepoDir/" -f %n \
 	 >"$toBeUpdated"
 	tmp2=$(mktemp)
 	sort -u "$toBeUpdated" >"$tmp2"
@@ -453,15 +453,15 @@ update_packages() {
 
 prepare_for_build() {
 	# Enable building restricted packages
-	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$confWorkdir"/"$defaultRepoDir"/etc/conf; then
+	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$workDir"/"$defaultRepoDir"/etc/conf; then
 		msg debug "Building restricted packages is enabled!"
 	else
 		msg info "Enable building restricted packages!"
-		printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >>"$confWorkdir"/"$defaultRepoDir"/etc/conf
+		printf "%s\n" "XBPS_ALLOW_RESTRICTED=yes" >>"$workDir"/"$defaultRepoDir"/etc/conf
 	fi
 	# Bootstrap if masterdir is not populated
-	if [ ! -e "$confWorkdir"/"$defaultRepoDir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ]; then
-		cd "$confWorkdir"/"$defaultRepoDir" || msg error "Cannot change to $confWorkdir/$defaultRepoDir"
+	if [ ! -e "$workDir"/"$defaultRepoDir"/masterdir-"$(xbps-uhelper arch)"/usr/bin/xbps-install ]; then
+		cd "$workDir"/"$defaultRepoDir" || msg error "Cannot change to $workDir/$defaultRepoDir"
 		./xbps-src binary-bootstrap || msg error "Cannot bootstrap!"
 	fi
 	# Make sure third-party templates are merged
@@ -477,7 +477,7 @@ build_packages() {
 	# Check if templates exist - provide a better message than the
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
-		if [ ! -d "$confWorkdir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
+		if [ ! -d "$workDir"/"$defaultRepoDir"/srcpkgs/"$template" ]; then
 			#shellcheck disable=SC2030
 			#modification in the subshell is intended
 			msg error "${yellow}[$template]${resetColour} is not available! Searching for similar packages...
@@ -489,14 +489,14 @@ build_packages() {
 	done
 
 	for package in $packageList; do
-		cd "$confWorkdir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
+		cd "$workDir"/"$defaultRepoDir" && ./xbps-src pkg -E "$package"
 		cmdStatus=$?
 		[ "$cmdStatus" != 0 ] && msg error "$package build failed, see above!"
 	done
 	# Exit program if build_packages() is called by itself.
 	if [ -n "$packages" ] && [ "$opInstall" = 0 ]; then
 		msg info "Successfully build $packages!"
-		msg info "Packages are in $confWorkdir/$defaultRepoDir/hostdir/."
+		msg info "Packages are in $workDir/$defaultRepoDir/hostdir/."
 		[ "$opForeignHost" != 1 ] \
 			&& msg info "You can install them with xbps or by running <xut -i>."
 		exit 0
