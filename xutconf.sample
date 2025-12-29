@@ -10,4 +10,6 @@ workDir="${HOME}/.xut"
 # void-packages and abyss-packages repos are always used.
 # if someone wants additional repos add the git repo clone url in the
 # addtionalRepos variable as a list (space separated).
+# For use specific branch for repository add @branch after repo link
+# Example: https://myserver/myrepo@development
 additionalRepos=""
