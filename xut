@@ -489,7 +489,7 @@ update_packages() {
 
 prepare_for_build() {
 	# Enable building restricted packages
-	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$workDir"/"$defaultRepoDir"/etc/conf; then
+	if grep -q "XBPS_ALLOW_RESTRICTED=yes" "$workDir"/"$defaultRepoDir"/etc/conf >/dev/null; then
 		msg debug "Building restricted packages is enabled!"
 	else
 		msg info "Enable building restricted packages!"
