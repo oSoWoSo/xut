@@ -164,8 +164,23 @@ OPTIONS
 }
 
 find_repodir() {
+	url=$1
+	case $url in
+	# Use custom branch if repo have @
+		https://*@*)
+			haveBranch=yes
+			repo=${url%@*}
+			branch=${url#*@}
+			;;
+		https://*)
+			haveBranch=no
+			unset branch
+			repo="$url"
+			;;
+		*) msg warn "Strange $url url" ;;
+	esac
 	# Define a proper (no slashes...) directory name for a remote git repo
-	repoDir=$(rdlast="${1%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
+	repoDir=$(rdlast="${repo%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
 }
 
 
@@ -222,9 +237,14 @@ retrieve_repos() {
 	# Clone every configured repo if needed.
 	for repo in $reposList; do
 		find_repodir "$repo"
-		if [ ! -d "$workDir/$repoDir"/.git ]; then
-			msg debug "Cloning $repo..."
-			git clone --depth 1 "$repo" "$workDir/$repoDir" || msg error "Cannot clone $repo repo."
+		if [ ! -d "$workDir/$repoDir/.git" ]; then
+			if [ "$haveBranch" = 'yes' ]; then
+				msg debug "Cloning $repo branch ${green}${branch}${resetColour}..."
+				git clone --depth 1 --single-branch --branch "$branch" "$repo" "$workDir/$repoDir" || msg error "Cannot clone $repo with branch $branch. Does the branch exist?"
+			else
+				msg debug "Cloning $repo..."
+				git clone --depth 1 "$repo" "$workDir/$repoDir" || msg error "Cannot clone $repo repo."
+			fi
 			msg debug "Successfully cloned $repo !"
 			opIntegrate=1
 		else
@@ -239,11 +259,27 @@ sync_repos() {
 	for repo in $reposList; do
 		find_repodir "$repo"
 		msg debug "Syncing $repo..."
-		currentBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short HEAD 2>/dev/null)
-		defaultBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||') # that is not 100% correct, should fix
-		git -C "$workDir/$repoDir" checkout "$defaultBranch" || msg error "Cannot switch to $defaultBranch. Probably uncommitted changes on $currentBranch?"
+		if [ "$haveBranch" = yes ]; then
+			currentBranch="$branch"
+			defaultBranch="$branch"
+			msg info "$repo using ${green}$defaultBranch${resetColour} branch"
+			# Fetch the specific branch from remote
+			git -C "$workDir/$repoDir" fetch origin "$defaultBranch" || msg error "Cannot fetch branch $defaultBranch from $repo"
+			# Check if local branch exists
+			if ! git -C "$workDir/$repoDir" rev-parse --verify "$defaultBranch" >/dev/null 2>&1; then
+				msg debug "Creating tracking branch for $defaultBranch"
+				git -C "$workDir/$repoDir" checkout -b "$defaultBranch" "origin/$defaultBranch" || \
+					msg error "Cannot create branch $defaultBranch"
+			else
+				git -C "$workDir/$repoDir" checkout "$defaultBranch" || msg error "Cannot switch to $defaultBranch"
+			fi
+		else
+			currentBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short HEAD 2>/dev/null)
+			defaultBranch=$(git -C "$workDir/$repoDir" symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||')
+			git -C "$workDir/$repoDir" checkout "$defaultBranch" || msg error "Cannot switch to $defaultBranch. Probably uncommitted changes on $currentBranch?"
+		fi
 		msg debug "Switched to $defaultBranch"
-		git -C "$workDir/$repoDir" pull "$repo"  || msg error "Cannot sync to $repo"
+		git -C "$workDir/$repoDir" pull origin "$defaultBranch" || msg error "Cannot sync to $repo"
 		msg info "$repo synced"
 	done
 	opIntegrate=1
@@ -269,7 +305,7 @@ should_copy_template() {
 	xbps-uhelper cmpver "$destVer" "$srcVer"
 	# If source is newer
 	if [ "$?" -eq 255 ]; then
-		msg info "... $templateName ${green}${bold}$srcVer${resetColour}"
+		echo "... $templateName ${green}${bold}$srcVer${resetColour}"
 		return 0
 	fi
 
