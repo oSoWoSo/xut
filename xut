@@ -94,7 +94,8 @@ set_default_configuration() {
 	readonly defaultRepo
 	repoAbyssPackages=https://codeberg.org/mobinmob/abyss-packages
 	readonly repoAbyssPackages
-	defaultRepoDir=$(rdlast="${defaultRepo%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
+	find_repodir "$defaultRepo"
+	defaultRepoDir="$repodir"
 	readonly defaultRepoDir
 	[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
 	[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
