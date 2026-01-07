@@ -146,8 +146,26 @@ OPTIONS
 }
 
 find_repodir() {
-	# Define a proper (no slashes...) directory name for a remote git repo
-	repodir=$(rdlast="${1%/}"; rdfirst="${rdlast%/*}"; printf '_%s_%s\n' "${rdfirst##*/}" "${rdlast##*/}")
+	# Define a proper and pretty unique directory name for a remote git repo
+	u=${1%/}
+	u=${u#*://}
+	u=${u#*@}
+
+	# Guard for scp-style ':' only if ':' exists
+	case "$u" in
+	  *:*) u=${u%%:*}/${u#*:} ;;
+	esac
+
+	# Remove optional .git
+	path=${u%.git}
+
+	# Filesystem-safe: replace / with _, remove unsafe chars
+	safe=$(printf '%s\n' "$path" | tr '/:@' '___' | tr -cd 'A-Za-z0-9._-')
+
+	# Compact hash for collision resistance
+	hash=$(printf '%s\n' "$path" | cksum | awk '{printf "%x", $1}')
+	
+	repodir=_${safe}_${hash}
 }
 
 create_template_list() {
@@ -209,7 +227,7 @@ retrieve_repos() {
 			msg debug "Successfully cloned $repo !"
 			opIntegrate=1
 		else
-			msg debug "$repo already exists in $repodir !"
+			msg debug "$repo already exists in $confWorkdir/$repodir !"
 		fi
 	done
 }
