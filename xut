@@ -147,27 +147,60 @@ OPTIONS
 }
 
 find_repodir() {
-	# Define a proper and pretty unique directory name for a remote git repo
-	u=${1%/}
-	u=${u#*://}
-	u=${u#*@}
+    : "${XUT_TMP:=/tmp}/xut_tmp"
+    repodir_cache="$XUT_TMP/repodir.cache"
 
-	# Guard for scp-style ':' only if ':' exists
-	case "$u" in
-	  *:*) u=${u%%:*}/${u#*:} ;;
-	esac
+    # ensure cache file exists
+    [ -f "$repodir_cache" ] || : > "$repodir_cache"
 
-	# Remove optional .git
-	path=${u%.git}
+    url=$1
 
-	# Filesystem-safe: replace / with _, remove unsafe chars
-	safe=$(printf '%s\n' "$path" | tr '/:@' '___' | tr -cd 'A-Za-z0-9._-')
+    # ---------- FAST PATH ---------- 
+   cached=$(awk -F'|' -v url="$url" '
+    $1 == url {
+        print $2
+        exit
+    }
+' "$repodir_cache")
 
-	# Compact hash for collision resistance
-	hash=$(printf '%s\n' "$path" | cksum | awk '{printf "%x", $1}')
-	
-	repodir=_${safe}_${hash}
+    if [ -n "$cached" ]; then
+        repodir=$cached
+        return 0
+    fi
+
+    # ---------- SLOW PATH ----------
+
+    # normalize url
+    u=${url%/}
+    u=${u#*://}
+    u=${u#*@}
+
+    case "$u" in
+        *:*) u=${u%%:*}/${u#*:} ;;
+    esac
+
+    path=${u%.git}
+
+    # make filesystem-safe name
+    # translate separators → underscore, then strip invalid
+    safe=$(printf '%s\n' "$path" \
+        | tr '/:@' '___' \
+        | tr -cd 'A-Za-z0-9._-')
+
+    # POSIX hash via cksum
+    # get first field from command substitution
+    set -- "$(printf '%s\n' "$path" | cksum)"
+    sum=$1
+
+    # decimal → hex using POSIX printf
+    hash=$(printf "%x" "$sum")
+
+    repodir=_${safe}_${hash}
+
+    # append atomically (POSIX redirect append)
+    printf '%s|%s\n' "$url" "$repodir" >> "$repodir_cache"
 }
+
 
 create_template_list() {
 	# Creates a newline-separated list of template directory names that exist under
@@ -205,14 +238,6 @@ include_additional_repos() {
 	reposList="$defaultRepo"
 	#shellcheck disable=SC2154
 	for xtraRepo in $additionalRepos; do
-		case "$xtraRepo" in
-            http://*|https://*) ;;
-            *)
-                msg error "Invalid repo entry: '$xtraRepo'
-Each repo must be a URL beginning with http:// or https://
-Fix your 'additionalRepos' configuration."
-                ;;
-        esac
 		reposList="$reposList $xtraRepo"
 	done
 	reposList="$reposList $repoAbyssPackages"
