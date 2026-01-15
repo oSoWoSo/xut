@@ -53,7 +53,10 @@ additional software for a void-linux installation.
 
 	*NO_COLOR* is respected, as defined in https://no-color.org/
 	
-	*CONF_WORKDIR* accepts a path to a directory and xut uses it as 
+	*CONF_WORKDIR* is deprecated and will be removed
+	Use *XUT_WORKDIR* instead
+	
+	*XUT_WORKDIR* accepts a path to a directory and xut uses it as 
 	a working directory, overriding the configuration.
 	
 	*XUT_TMPDIR* accepts a path to a directory that xut uses for temporary

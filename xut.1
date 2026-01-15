@@ -5,7 +5,7 @@
 .nh
 .ad l
 .\" Begin generated content:
-.TH "XUT" "1" "2025-12-10"
+.TH "XUT" "1" "2026-01-15"
 .PP
 .SH NAME
 .PP
@@ -87,7 +87,10 @@ If \fB-x\fR is used, \fB-b\fR, \fB-i\fR and \fB-q\fR will be ignored.\&
 .RS 4
 \fBNO_COLOR\fR is respected, as defined in https://no-color.\&org/
 .PP
-\fBCONF_WORKDIR\fR accepts a path to a directory and xut uses it as 
+\fBCONF_WORKDIR\fR is deprecated and will be removed
+Use \fBXUT_WORKDIR\fR instead
+.PP
+\fBXUT_WORKDIR\fR accepts a path to a directory and xut uses it as 
 a working directory, overriding the configuration.\&
 .PP
 \fBXUT_TMPDIR\fR accepts a path to a directory that xut uses for temporary

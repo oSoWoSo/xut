@@ -113,8 +113,10 @@ set_default_configuration() {
 	find_repodir "$defaultRepo"
 	defaultRepoDir="$repoDir"
 	readonly defaultRepoDir
-	[ -n "$XUT_WORKDIR" ] && workDir="$XUT_WORKDIR" && msg info "Using $workDir as working directory."
+	[ -n "$XUT_WORKDIR" ] && workDir="$XUT_WORKDIR" &&
+	 msg info "Using $workDir as working directory."
 	[ -z "$workDir" ] && workDir="$HOME"/.xut
+	msg debug "Using $workDir as working directory."
 
 	# Define a log filename
 	confLogDir="$workDir/logs"
