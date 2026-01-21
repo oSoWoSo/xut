@@ -39,7 +39,7 @@ set_default_vars() {
 	opInstall=0   #Install packages (-i <package1,package2>)
 	opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
 	opUpdate=0    #Update sw from updated templates (-u).
-	opFullUPgrade=0	#Update all installed package, official or not
+	opFullUpgrade=0	#Update all installed package, official or not
 					#rebuild what is not on the repos (-U).
 	opSync=0      #Sync repos
 	opIntegrate=0 #Intergrate all templates into a merged repo.
@@ -201,7 +201,7 @@ find_repodir() {
     repodir=_${safe}_${hash}
 
     # append atomically (POSIX redirect append)
-    printf '%s|%s\n' "$url" "$repodir" >> "$repodir_cache"
+    printf '%s|%s\n' "$url" "$repodir" >> "$repodir_cache" || return 1
 }
 
 
@@ -509,7 +509,7 @@ discover_updates() {
 			printf '%s\n' '---TEMPLATE-INDEX---'
 			cat "$templatesCache/template_index"
 		} |
-		awk -v full="${opUpgradeFull:-0}" '
+		awk -v full="${opFullUpgrade:-0}" '
 		BEGIN {
 			ENVIRON["LC_ALL"] = "C"   # enforce byte-wise lexicographic order
 			FS="|"
@@ -667,7 +667,7 @@ while getopts "slhuUdb:i:x:q:" OPTION; do
 		x) opXbpsSrc="$OPTARG"; xbps_src_command ;;
 		q) templateQuery="$OPTARG"; opQuery=1 ;;
 		u) opUpdate=1 ;;
-		U) opUpdate=1; opUpgradeFull=1;;
+		U) opUpdate=1; opFullUpgrade=1;;
 		h) usage ; exit 0;;
 		*) usage ; exit 1;;
 	esac
