@@ -38,7 +38,9 @@ set_default_vars() {
 	opBuild=0     #Build packages, ( -b).
 	opInstall=0   #Install packages (-i <package1,package2>)
 	opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
-	opUpdate=0    #Update sw from updated templates (-u)
+	opUpdate=0    #Update sw from updated templates (-u).
+	opFullUPgrade=0	#Update all installed package, official or not
+					#rebuild what is not on the repos (-U).
 	opSync=0      #Sync repos
 	opIntegrate=0 #Intergrate all templates into a merged repo.
 	opForeignHost=0	#Detection of non-Voidlinux host system.
@@ -501,71 +503,57 @@ discover_updates() {
 
 	templatesToUpdate=$(
 		{
-			xbps-query -l
+			"$confWorkdir/$defaultRepoDir"/xbps-src show-sys-updates |
+			awk '{print $1}'
+
 			printf '%s\n' '---TEMPLATE-INDEX---'
 			cat "$templatesCache/template_index"
 		} |
-		awk '
+		awk -v full="${opUpgradeFull:-0}" '
 		BEGIN {
+			ENVIRON["LC_ALL"] = "C"   # enforce byte-wise lexicographic order
 			FS="|"
-			mode = "installed"
+			mode = "upgrades"
 		}
 
-		# switch input mode
 		$0 == "---TEMPLATE-INDEX---" {
 			mode = "templates"
 			next
 		}
 
-		# installed packages
-		mode == "installed" {
-			split($0, f, /[[:space:]]+/)
-			pkgver = f[2]
-			if (pkgver == "")
-				next
-
-			n = split(pkgver, a, "-")
-			pkg = a[1]
-			for (i = 2; i < n; i++)
-				pkg = pkg "-" a[i]
-
-			installed[pkg] = a[n]
+		mode == "upgrades" {
+			up[$1] = 1
 			next
 		}
 
-		# MODE: template index
-# template|available|repo|restricted
-mode == "templates" {
-	template   = $1
-	pkg        = template
-	available  = $2
-	repo       = $3
-	restricted = $4
+		mode == "templates" {
+			template   = $1
+			repo       = $3
+			restricted = $4
 
-	if (!(pkg in installed))
-		next
+			if (!(template in up))
+				next
 
-	if (repo == "void-linux::void-packages" && restricted != "yes")
-		next
+			if (repo == "void-linux::void-packages") {
+				if (restricted != "yes" && full != 1)
+					next
+			}
 
-	rc = system("xbps-uhelper cmpver \"" installed[pkg] "\" \"" available "\"")
-
-	if (rc == 255)
-		upgrade[template] = 1
-}
+			out[template] = 1
+		}
 
 		END {
-			for (t in upgrade)
-				print t
+			n = asorti(out, sorted)
+			for (i = 1; i <= n; i++)
+				printf "%s ", sorted[i]
 		}
-		' |
-		sort -u |
-		tr '\n' ' '
+		'
 	)
 
 	templatesToUpdate=${templatesToUpdate# }
 	export templatesToUpdate
 }
+
 
 
 update_packages() {
@@ -669,7 +657,7 @@ find "$confLogDir" -name "xut_*.log" | sort -r | awk 'NR>5 {print}' | while IFS=
 # Capture all the arguments given
 showargs="$(printf "%s" "$*")"
 
-while getopts "slhudb:i:x:q:" OPTION; do
+while getopts "slhuUdb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) opSync=1 ;;
 		l) opLog=1 ;;
@@ -679,6 +667,7 @@ while getopts "slhudb:i:x:q:" OPTION; do
 		x) opXbpsSrc="$OPTARG"; xbps_src_command ;;
 		q) templateQuery="$OPTARG"; opQuery=1 ;;
 		u) opUpdate=1 ;;
+		U) opUpdate=1; opUpgradeFull=1;;
 		h) usage ; exit 0;;
 		*) usage ; exit 1;;
 	esac
