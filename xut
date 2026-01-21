@@ -192,7 +192,7 @@ find_repodir() {
 
     # POSIX hash via cksum
     # get first field from command substitution
-    set -- "$(printf '%s\n' "$path" | cksum)"
+    set -- $(printf '%s\n' "$path" | cksum)
     sum=$1
 
     # decimal → hex using POSIX printf
