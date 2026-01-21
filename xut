@@ -194,7 +194,7 @@ find_repodir() {
     sum=$1
 
     # decimal → hex using POSIX printf
-    hash=$(printf "%x" "$sum")
+    hash=$(printf '%x' "$sum")
 
     repodir=_${safe}_${hash}
 
@@ -577,7 +577,7 @@ update_packages() {
 		msg warn "No updates available"
 		exit 0
 	fi
-	[ "$mergeDone" = "0" ] && integrate_extra_templates
+	[ "$mergeDone" = "0" ] && integrate_xtra_templates
 	opInstall=1
 	packages="$templatesToUpdate"
 	install_packages 
@@ -606,7 +606,7 @@ build_packages() {
 	prepare_for_build
 	packageList="$(echo "$packages" | tr ',' ' ')"
 	export packageList
-	[ "$mergeDone" = "0" ] && integrate_extra_templates
+	[ "$mergeDone" = "0" ] && integrate_xtra_templates
 	# Check if templates exist - provide a better message than the
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
