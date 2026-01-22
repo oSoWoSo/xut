@@ -39,7 +39,7 @@ set_default_vars() {
 	opInstall=0   #Install packages (-i <package1,package2>)
 	opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
 	opUpdate=0    #Update sw from updated templates (-u).
-	opFullUpgrade=0	#Update all installed package, official or not
+	opFullUpgrade=0	#Update all installed packages, official or not,
 					#rebuild what is not on the repos (-U).
 	opSync=0      #Sync repos
 	opIntegrate=0 #Intergrate all templates into a merged repo.
@@ -143,6 +143,8 @@ OPTIONS
  -x                      Give xbps-src commands.
  -q <query>              Search for <query> in available templates.
  -u                      Update packages.
+ -U						 Update all installed packages, official or not,
+						 rebuild what is not in the repos.
 
 	 The options are given together. For example in order to sync,
 	 enable logging and install <package> the cli command is

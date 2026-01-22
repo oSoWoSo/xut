@@ -67,6 +67,8 @@ xut [options]
 | -x <command>           | Give xbps-src commands.                                 |
 | -q <query>             | Search for <query> in available templates.              |
 | -u                     | Update packages.							               |
+| -U					 | Update all installed packages, official or not,		   |
+|						 | rebuild what is not in the repos.                       |
                                      |
 
 
