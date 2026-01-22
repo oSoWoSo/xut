@@ -207,15 +207,6 @@ find_repodir() {
 }
 
 
-ensure_template_index() {
-    if [ ! -r "$templatesCache/template_index" ]; then
-        msg debug "template_index missing, building it"
-        build_template_index
-    else
-        msg debug "template_index already exists"
-    fi
-}
-
 repo_templates_cksum() {
     find "$1" -type f -name template -print |
     sort |
@@ -478,7 +469,8 @@ xbps_src_command() {
 
 search_templates() {
     msg info "Searching for ${yellow}[$templateQuery]${resetColour} ..."
-
+	# Ensure template index exists
+	[ -r "$templatesCache/template_index" ] || build_template_index
     awk -F'|' -v q="$templateQuery" '
         BEGIN {
             fmt = "  %-25s %-12s %s\n"
@@ -634,11 +626,10 @@ main() {
 	include_additional_repos
 	retrieve_repos
 	[ "$opSync" -eq 0 ] || sync_repos
-	ensure_template_index
-	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
 	if [ "$opIntegrate" -eq 1 ] || [ ! -r "$templatesCache/template_index" ]; then
     build_template_index
 	fi
+	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
 	[ "$opUpdate" -eq 0 ] || update_packages
 	#shellcheck disable=SC2031 
 	#modification in the subshell in build_packages is intended
