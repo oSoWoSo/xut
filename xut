@@ -38,7 +38,9 @@ set_default_vars() {
 	opBuild=0     #Build packages, ( -b).
 	opInstall=0   #Install packages (-i <package1,package2>)
 	opXbpsSrc="" #Contains the xbps-src command to be given after the -x argument
-	opUpdate=0    #Update sw from updated templates (-u)
+	opUpdate=0    #Update sw from updated templates (-u).
+	opFullUpgrade=0	#Update all installed packages, official or not,
+					#rebuild what is not on the repos (-U).
 	opSync=0      #Sync repos
 	opIntegrate=0 #Intergrate all templates into a merged repo.
 	opForeignHost=0	#Detection of non-Voidlinux host system.
@@ -46,6 +48,7 @@ set_default_vars() {
 	# Initialise empty vars
 	templatesToUpdate=""
 	packageList=""
+	mergeDone=0
 }
 
 distribution_sanity_check() {
@@ -97,6 +100,8 @@ set_default_configuration() {
 	find_repodir "$defaultRepo"
 	defaultRepoDir="$repodir"
 	readonly defaultRepoDir
+	defaultRepoName="$repoName"
+	readonly defaultRepoName
 	[ -n "$CONF_WORKDIR" ] && confWorkdir="$CONF_WORKDIR" && msg info "Using $confWorkdir as working directory."
 	[ -z "$confWorkdir" ] && confWorkdir="$HOME"/.xut
 
@@ -113,7 +118,7 @@ set_default_configuration() {
 	# Merged templates directory
 	mergedDir=$(mktemp -d "${XUT_TMPDIR:-/tmp}/merged.XXXXXX") || msg error "Cannot create $mergedDir"
 	# Cleanup on exit
-	trap '[ -n "$mergedDir" ] && rm -rf "$mergedDir" "$XUT_TMP/templates"' EXIT INT TERM
+	trap '[ -n "$mergedDir" ] && rm -rf "$mergedDir"' EXIT INT TERM
 }
 
 usage() {
@@ -140,6 +145,8 @@ OPTIONS
  -x                      Give xbps-src commands.
  -q <query>              Search for <query> in available templates.
  -u                      Update packages.
+ -U						 Update all installed packages, official or not,
+						 rebuild what is not in the repos.
 
 	 The options are given together. For example in order to sync,
 	 enable logging and install <package> the cli command is
@@ -149,88 +156,183 @@ OPTIONS
 find_repodir() {
     : "${XUT_TMP:=/tmp}/xut_tmp"
     repodir_cache="$XUT_TMP/repodir.cache"
-
-    # ensure cache file exists
-    [ -f "$repodir_cache" ] || : > "$repodir_cache"
+    [ -f "$repodir_cache" ] || : >"$repodir_cache"
 
     url=$1
 
-    # ---------- FAST PATH ---------- 
-   cached=$(awk -F'|' -v url="$url" '
+    out=$(
+    awk -F'|' -v url="$url" -v cache="$repodir_cache" '
+    function hex(n,    h,r) {
+        h=""
+        while (n > 0) {
+            r = n % 16
+            h = substr("0123456789abcdef", r+1, 1) h
+            n = int(n / 16)
+        }
+        return h ? h : "0"
+    }
+
+    # ---------- FAST PATH ----------
     $1 == url {
-        print $2
+        print $2 "|" $3
+        found = 1
         exit
     }
-' "$repodir_cache")
 
-    if [ -n "$cached" ]; then
-        repodir=$cached
-        return 0
+    END {
+        if (found)
+            exit
+
+        # ---------- SLOW PATH ----------
+        u = url
+        sub(/\/$/, "", u)
+        sub(/^.*:\/\//, "", u)
+        sub(/^.*@/, "", u)
+
+        if (u ~ /:/) {
+            split(u, a, ":")
+            u = a[1] "/" a[2]
+        }
+
+        path = u
+        sub(/\.git$/, "", path)
+
+        safe = path
+        gsub(/[\/:@]/, "_", safe)
+        gsub(/[^A-Za-z0-9._-]/, "", safe)
+
+        cmd = "printf \"%s\\n\" \"" path "\" | cksum"
+        cmd | getline
+        close(cmd)
+
+        sum = $1
+        hash = hex(sum)
+
+        repodir = "_" safe "_" hash
+
+        n = split(repodir, f, "_")
+        repoName = f[n-2] "::" f[n-1]
+
+        printf "%s|%s|%s\n", url, repodir, repoName >> cache
+        print repodir "|" repoName
+    }
+    ' "$repodir_cache"
+    ) || return 1
+
+    repodir=${out%%|*}
+    repoName=${out#*|}
+
+    [ -n "$repodir" ] || return 1
+    return 0
+}
+
+
+repo_templates_cksum() {
+    find "$1" -type f -name template -print |
+    sort |
+    cksum |
+    awk '{ s+=$1 } END { print s+0 }'
+}
+
+build_template_index() {
+    tmp=$(mktemp) || msg error "mktemp failed"
+    changed=0
+
+    for repo in $reposList; do
+        repodir=
+        if ! find_repodir "$repo"; then
+            msg debug "No repo dir found for $repo"
+            continue
+        fi
+
+        repoName=$(printf '%s\n' "$repodir" | awk -F_ '{ print $(NF-2) "::" $(NF-1) }')
+        repoDir="$confWorkdir/$repodir"
+
+        # Detect template root
+        if [ -d "$repoDir/srcpkgs" ]; then
+            tplroot="$repoDir/srcpkgs"
+        elif [ -d "$repoDir" ]; then
+            tplroot="$repoDir"
+        else
+            msg debug "No templates in $repoDir"
+            continue
+        fi
+
+        msg debug "Indexing repo=$repoName template root=$tplroot"
+
+        newCk=$(repo_templates_cksum "$tplroot")
+        oldCk=$(awk -F'|' -v r="$repoName" '$1==r { print $2 }' \
+                    "$templatesCache/repo_checksums" 2>/dev/null)
+
+        # ---------- FAST PATH: reuse cached list ----------
+        if [ "$newCk" = "$oldCk" ] &&
+           [ -r "$templatesCache/template_index" ]; then
+            msg debug "Reusing cached template list for $repoName"
+            awk -F'|' -v r="$repoName" '$3==r' \
+                "$templatesCache/template_index" >>"$tmp"
+            continue
+        fi
+
+        # ---------- SLOW PATH: rebuild ----------
+        changed=1
+
+        awk -v repo="$repoName" '
+    BEGIN { OFS="|" }
+
+    FNR==1 {
+        v = ""
+        r = ""
+        restricted = "no"
+    }
+
+    # version=
+    $0 ~ /^version=/ {
+        v = substr($0, 9)          # after "version="
+        sub(/[[:space:]].*$/, "", v)
+        gsub(/"/, "", v)
+        next
+    }
+
+    # revision=
+    $0 ~ /^revision=/ {
+        r = substr($0, 10)         # after "revision="
+        sub(/[[:space:]].*$/, "", r)
+        gsub(/"/, "", r)
+        next
+    }
+
+    # restricted=yes
+    $0 == "restricted=yes" {
+        restricted = "yes"
+        next
+    }
+
+    ENDFILE {
+        if (v != "") {
+            if (r == "") r = 1
+            n = split(FILENAME, p, "/")
+            print p[n-1], v "_" r, repo, restricted
+        }
+    }
+' "$tplroot"/*/template 2>/dev/null >>"$tmp"
+
+        # Update checksum cache
+        awk -F'|' -v r="$repoName" '
+            $1!=r { print }
+            END { print r "|" "'"$newCk"'" }
+        ' "$templatesCache/repo_checksums" 2>/dev/null \
+        >"$templatesCache/repo_checksums.tmp" &&
+        mv "$templatesCache/repo_checksums.tmp" \
+           "$templatesCache/repo_checksums"
+    done
+
+    # Rebuild final index only if needed
+    if [ "$changed" -eq 1 ] ||
+       [ ! -r "$templatesCache/template_index" ]; then
+        sort -u "$tmp" >"$templatesCache/template_index"
     fi
 
-    # ---------- SLOW PATH ----------
-
-    # normalize url
-    u=${url%/}
-    u=${u#*://}
-    u=${u#*@}
-
-    case "$u" in
-        *:*) u=${u%%:*}/${u#*:} ;;
-    esac
-
-    path=${u%.git}
-
-    # make filesystem-safe name
-    # translate separators → underscore, then strip invalid
-    safe=$(printf '%s\n' "$path" \
-        | tr '/:@' '___' \
-        | tr -cd 'A-Za-z0-9._-')
-
-    # POSIX hash via cksum
-    # get first field from command substitution
-    set -- "$(printf '%s\n' "$path" | cksum)"
-    sum=$1
-
-    # decimal → hex using POSIX printf
-    hash=$(printf "%x" "$sum")
-
-    repodir=_${safe}_${hash}
-
-    # append atomically (POSIX redirect append)
-    printf '%s|%s\n' "$url" "$repodir" >> "$repodir_cache"
-}
-
-
-create_template_list() {
-	# Creates a newline-separated list of template directory names that exist under
-	# ${1} and stores it in ${2}. Checks if dirs contain template files.
-	msg debug "Creating template list for ${1} in ${2}..."
-	dir="$1"
-    out="$2"
-    [ -d "$dir" ] || msg error "Directory $dir does not exist!"
-    : > "$out"
-    # Loop over possible template files
-    for tpl in "$dir"/*/template; do
-        [ -f "$tpl" ] || continue
-        pkgdir="${tpl%/template}"
-        printf "%s\n" "${pkgdir##*/}" >> "$out"
-    done
-}
-
-extract_verrev() {
-	# Get version_revision from ${1}
-    awk -F= '
-        /version=/ {
-            ver=$2
-            gsub(/"/,"",ver)
-        }
-        /revision=/ {
-            rev=$2
-            gsub(/"/,"",rev)
-        }
-        ver && rev { print ver "_" rev; exit }
-    ' "$1"
+    rm -f "$tmp"
 }
 
 include_additional_repos() {
@@ -274,119 +376,86 @@ sync_repos() {
 	opIntegrate=1
 }
 
-should_copy_template() {
-	sourceTemplate="$1"
-	destTemplate="$2"
-	sourceTemplateName="${sourceTemplate%/*}"
-	sourceTemplateName="${sourceTemplateName##*/}"
-	destTemplateName="${destTemplate%/*}"
-	destTemplateName="${destTemplateName##*/}"
-	# Quick check - if dest doesn't exist, copy immediately
-	if [ ! -f "$destTemplate" ]; then
-		msg debug "... $templateName"
-		return 0
-	fi
-
-	# Extract full version_revision strings
-	srcVer=$(extract_verrev "$sourceTemplate")
-	destVer=$(extract_verrev "$destTemplate")
-	msg debug "Comparing: $sourceTemplateName($srcVer) vs $destTemplateName($destVer)"
-	xbps-uhelper cmpver "$destVer" "$srcVer"
-	# If source is newer
-	if [ "$?" -eq 255 ]; then
-		msg info "... $templateName ${green}${bold}$srcVer${resetColour}"
-		return 0
-	fi
-
-	return 1
-}
 
 merge_xtra_templates() {
-	# Merge all available template directories to a temporary directory,
-	# With intelligent version-based conflict resolution.
-    for repo in $reposList; do
-        find_repodir "$repo"
-        repoName="${repo##*/}"
+    plan="$templatesCache/merge_plan"
+    index="$templatesCache/template_index"
+    cache="$templatesCache/cmpver.cache"
 
-        if [ "$repo" = "$defaultRepo" ]; then
-            default_branch=$(git -C "$confWorkdir/$repodir" symbolic-ref --short refs/remotes/origin/HEAD \
-             | sed 's|origin/||')
-            git -C "$confWorkdir/$repodir" checkout "$default_branch" \
-             || msg error "Cannot switch to $default_branch"
-			# Create template lists from a clean checkout.
-            git -C "$confWorkdir/$repodir" clean -fd >/dev/null 2>&1  \
-            || msg error "Cannot clean $confWorkdir/$repodir"
-            xbps-checkvers -s -D "$confWorkdir/$defaultRepoDir" -f %n \
-            | sort > "$templatesCache"/void_templates
-			# Create template list for restricted packages, in order to include them in update discovery and updates.
-            grep -lr "restricted=yes" "$confWorkdir/$defaultRepoDir/srcpkgs/" \
-             | awk -F '/' '{print $(NF-1)}' > "$templatesCache/templates_restricted-packages"
-            continue
-        fi
+    [ -r "$index" ] || build_template_index
 
-        msg info "Merging templates from ${green}${bold}$repo${resetColour}"
-        searchPath="$confWorkdir/$repodir"
-        [ -d "$searchPath/srcpkgs" ] && searchPath="$searchPath/srcpkgs"
-        msg debug "Searching in $searchPath"
-		# Create xtra repo templates list
-		# Show progress during template processing
-        create_template_list "$searchPath" "$templatesCache/templates_$repoName"
+    # ---- build repo → repodir map once ----
+    repo_map="$templatesCache/repo_map"
+    : >"$repo_map"
 
-        processed=0
-		# Process templates
-        # POSIX-safe: loop over directories, follow symlinks
-        for dir in "$searchPath"/*; do
-            [ -d "$dir" ] || continue          # skip non-directories
-            [ -e "$dir/template" ] || continue  # skip dirs without template
-
-            templateName="${dir##*/}"
-            sourceTemplate="$dir/template"
-            destTemplate="$confWorkdir/$defaultRepoDir/srcpkgs/$templateName/template"
-
-            processed=$((processed + 1))
-            printf "\r%5d " "$processed"
-
-            if should_copy_template "$sourceTemplate" "$destTemplate"; then
-            	# Remove from mergedDir if it already exists
-                [ -d "$mergedDir/$templateName" ] && rm -rf "${mergedDir:?}/$templateName"
-                cp -r "$dir" "$mergedDir" || msg error "Cannot merge templates"
-            fi
-        done
-        printf "\n"
+    for url in $reposList; do
+        find_repodir "$url"
+        repoName=$(printf '%s\n' "$repodir" | awk -F_ '{ print $(NF-2) "::" $(NF-1) }')
+        printf '%s|%s\n' "$repoName" "$repodir" >>"$repo_map"
     done
+
+    awk -F'|' -v cache="$cache" -v defaultRepoName="$defaultRepoName" '
+    BEGIN {
+        while ((getline < cache) > 0)
+            cmp[$1 "|" $2 "|" $3] = $4
+        close(cache)
+    }
+
+    # base repo
+    $3 == defaultRepoName {
+        base[$1] = $2
+        next
+    }
+
+    {
+        pkg  = $1
+        ver  = $2
+        repo = $3
+
+        if (!(pkg in base)) {
+            print pkg "|" repo
+            next
+        }
+
+        key = pkg "|" base[pkg] "|" ver
+
+        if (key in cmp)
+            rc = cmp[key]
+        else {
+            cmd = "xbps-uhelper cmpver \"" base[pkg] "\" \"" ver "\""
+            rc = system(cmd)
+            cmp[key] = rc
+            printf "%s|%s|%s|%d\n", pkg, base[pkg], ver, rc >> cache
+        }
+
+        if (rc == 255)
+            print pkg "|" repo
+    }
+    ' "$index" >"$plan"
+
+    # ---- copy templates ----
+    while IFS='|' read -r pkg repo; do
+    repodir=$(awk -F'|' -v r="$repo" '$1==r {print $2}' "$repo_map")
+    [ -n "$repodir" ] || continue
+
+    repoDir="$confWorkdir/$repodir"
+
+    if [ -d "$repoDir/srcpkgs/$pkg" ]; then
+        src="$repoDir/srcpkgs/$pkg"
+    elif [ -d "$repoDir/$pkg" ]; then
+        src="$repoDir/$pkg"
+    else
+        continue
+    fi
+
+    rm -rf "${mergedDir:?}/$pkg"
+    cp -r "$src" "$mergedDir/"
+done <"$plan"
+
+
+    mergeDone=1
 }
 
-
-generate_all_template_lists() {
-    msg info "Generating template lists..."
-
-    # Ensure template merge has happened 
-    [ -r "$templatesCache/templates_restricted-packages" ] || merge_xtra_templates
-
-    # --- xtra template list (merging templates_*) ---
-    xtra="$templatesCache/xtra_templates"
-    : >"$xtra"
-
-    for file in "$templatesCache"/templates_*; do
-        [ -r "$file" ] && cat "$file" >>"$xtra"
-    done
-	
-    # unique + sorted (portable)
-	tmp=$(mktemp) || msg error "Failed to create temp file"
-    sort -u "$xtra" >"$tmp"
-    mv "$tmp" "$xtra"
-	
-    msg debug "Template merge completed."
-    msg info "templates in void-packages: ${green}$(wc -l < "$templatesCache"/void_templates)${resetColour}"
-    msg info "restricted templates: ${green}$(wc -l < "$templatesCache"/templates_restricted-packages) ${resetColour}"
-    for repo in $reposList; do
-		find_repodir "$repo"
-		if [ "$repo" != "$defaultRepo" ]; then
-			repoName="${repo##*/}"
-			msg info "Templates in $repoName: ${green}$(wc -l < "$templatesCache"/templates_"$repoName") ${resetColour}"
-		fi
-	done
-}
 
 integrate_xtra_templates() {
 	# Copy merged directory contents to the srcpkgs/ of the void-packages clone.
@@ -419,56 +488,87 @@ xbps_src_command() {
 }
 
 search_templates() {
-	msg info "Searching for ${yellow}[$templateQuery]${resetColour} ..."
-	found=0
-	for file in "$templatesCache"/templates_* "$templatesCache"/void_templates; do
-		[ ! -f "$file" ] && continue
-		# Ommit template_restricted-packages as they are part of void-packages.
-		# The template list file is needed for discover_updates()/
-		[ "$file" = "$templatesCache/templates_restricted-packages" ] && continue
-		if grep -q "$templateQuery" "$file"; then
-			found=1
-			fileName="${file##*/}"
-			case "$fileName" in
-				templates_*) fileName=$(echo "$fileName" | cut -d'_' -f2) ;;
-				void_templates) fileName="void-packages" ;;
-			esac
-			msg info "Found in ${green}${bold}$fileName${resetColour}:"
-			grep "$templateQuery" "$file" | while read -r line; do
-				printf "%s\n" "  ${green}(*)${resetColour} ${bold}${line}${resetColour}"
-			done
-		fi
-	done
-	if [ "$found" = 0 ]; then
-		msg warn "No templates found!"
-	fi
-	exit 0
+    msg info "Searching for ${yellow}[$templateQuery]${resetColour} ..."
+	# Ensure template index exists
+	[ -r "$templatesCache/template_index" ] || build_template_index
+    awk -F'|' -v q="$templateQuery" '
+        BEGIN {
+            fmt = "  %-25s %-12s %s\n"
+
+            # header
+            printf fmt, "Template", "Version", "Repo"
+            printf fmt, "--------", "-------", "----"
+        }
+
+        $1 ~ q {
+            printf fmt, $1, $2, $3
+            found = 1
+        }
+
+        END { exit !found }
+    ' "$templatesCache/template_index" ||
+        msg warn "No templates found!"
+
+    exit 0
 }
 
 discover_updates() {
-	msg info "Checking for updatable packages..."
+	msg info "Checking for updatable templates..."
 
-	# Ensure template list exists
-	if [ ! -r "$templatesCache/templates_restricted-packages" ]; then
-		generate_all_template_lists
-	fi
+	templatesToUpdate=$(
+		{
+			"$confWorkdir/$defaultRepoDir"/xbps-src show-sys-updates |
+			awk '{print $1}'
 
-	xtraTemplatesFile="$templatesCache/xtra_templates"
-	#Build list of templates to be updated
-	toBeUpdated="$templatesCache/toBeUpdated"
-	: >"$toBeUpdated"
-	xbps-checkvers -I -D "$confWorkdir/$defaultRepoDir/" -f %n \
-     >"$toBeUpdated"
-	tmp2=$(mktemp)
-	sort -u "$toBeUpdated" >"$tmp2"
-	mv "$tmp2" "$toBeUpdated"
-	# Intersection of sorted lists (comm requires sorting)
-	comm -1 -2 "$toBeUpdated" "$xtraTemplatesFile" \
-     >"$templatesCache/templatesToUpdate"
-	# Convert file into space-separated list
-	templatesToUpdate=$(tr '\n' ' ' < "$templatesCache/templatesToUpdate")
+			printf '%s\n' '---TEMPLATE-INDEX---'
+			cat "$templatesCache/template_index"
+		} |
+		awk -v full="${opFullUpgrade:-0}" -v defaultRepoName="$defaultRepoName" '
+		BEGIN {
+			ENVIRON["LC_ALL"] = "C"   # enforce byte-wise lexicographic order
+			FS="|"
+			mode = "upgrades"
+		}
+
+		$0 == "---TEMPLATE-INDEX---" {
+			mode = "templates"
+			next
+		}
+
+		mode == "upgrades" {
+			up[$1] = 1
+			next
+		}
+
+		mode == "templates" {
+			template   = $1
+			repo       = $3
+			restricted = $4
+
+			if (!(template in up))
+				next
+
+			if (repo == defaultRepoName) {
+				if (restricted != "yes" && full != 1)
+					next
+			}
+
+			out[template] = 1
+		}
+
+		END {
+			n = asorti(out, sorted)
+			for (i = 1; i <= n; i++)
+				printf "%s ", sorted[i]
+		}
+		'
+	)
+
+	templatesToUpdate=${templatesToUpdate# }
 	export templatesToUpdate
 }
+
+
 
 update_packages() {
 	# Build and install available updates.
@@ -479,6 +579,7 @@ update_packages() {
 		msg warn "No updates available"
 		exit 0
 	fi
+	[ "$mergeDone" = "0" ] && integrate_xtra_templates
 	opInstall=1
 	packages="$templatesToUpdate"
 	install_packages 
@@ -507,6 +608,7 @@ build_packages() {
 	prepare_for_build
 	packageList="$(echo "$packages" | tr ',' ' ')"
 	export packageList
+	[ "$mergeDone" = "0" ] && integrate_xtra_templates
 	# Check if templates exist - provide a better message than the
 	# xbps-src one. Usefull when args are given as OPTARG by mistake (e.g. xut -sbl).
 	for template in $packageList; do
@@ -544,8 +646,10 @@ main() {
 	include_additional_repos
 	retrieve_repos
 	[ "$opSync" -eq 0 ] || sync_repos
+	if [ "$opIntegrate" -eq 1 ] || [ ! -r "$templatesCache/template_index" ]; then
+    build_template_index
+	fi
 	[ "$opIntegrate" -eq 0 ] || integrate_xtra_templates
-	generate_all_template_lists
 	[ "$opUpdate" -eq 0 ] || update_packages
 	#shellcheck disable=SC2031 
 	#modification in the subshell in build_packages is intended
@@ -566,7 +670,7 @@ find "$confLogDir" -name "xut_*.log" | sort -r | awk 'NR>5 {print}' | while IFS=
 # Capture all the arguments given
 showargs="$(printf "%s" "$*")"
 
-while getopts "slhudb:i:x:q:" OPTION; do
+while getopts "slhuUdb:i:x:q:" OPTION; do
 	case "${OPTION}" in
 		s) opSync=1 ;;
 		l) opLog=1 ;;
@@ -576,6 +680,7 @@ while getopts "slhudb:i:x:q:" OPTION; do
 		x) opXbpsSrc="$OPTARG"; xbps_src_command ;;
 		q) templateQuery="$OPTARG"; opQuery=1 ;;
 		u) opUpdate=1 ;;
+		U) opUpdate=1; opFullUpgrade=1;;
 		h) usage ; exit 0;;
 		*) usage ; exit 1;;
 	esac

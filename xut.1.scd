@@ -41,6 +41,10 @@ additional software for a void-linux installation.
 
 *-u*
 	Update packages.
+	
+*-U*
+	Update all installed packages, official or not,
+	rebuild what is not in the repos.
 
 
 ## Notes for cli arguments
