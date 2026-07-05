@@ -1,0 +1,90 @@
+name: "xut CI"
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  test:
+    runs-on: codeberg-tiny
+    container:
+      image: ghcr.io/void-linux/void-glibc-full:latest
+      env:
+        SHELLSPEC_VERSION: '0.28.1'
+
+    steps:
+
+      - name: Install dependencies and create runner user
+        run: |
+          xbps-install -Syu xbps
+          xbps-install -y git wget nodejs make
+
+      - name: Setup ShellSpec
+        shell: sh
+        run: |
+          echo "Starting ShellSpec setup for version ${{ env.SHELLSPEC_VERSION }}"
+
+          INSTALL_DIR="/tmp/shellspec_install"
+          mkdir -p "$INSTALL_DIR"
+          cd "$INSTALL_DIR" || exit 1
+
+          wget "https://github.com/shellspec/shellspec/archive/${{ env.SHELLSPEC_VERSION }}.tar.gz" -O shellspec.tar.gz
+          tar xzf shellspec.tar.gz
+
+          # Calculate the path to the executable
+          SHELLSPEC_PATH="$(pwd)/shellspec-${{ env.SHELLSPEC_VERSION }}/shellspec"
+
+          echo "SHELLSPEC_PATH=$SHELLSPEC_PATH" >> $FORGEJO_ENV
+
+          echo "ShellSpec executable path registered: $SHELLSPEC_PATH"
+
+          cd /home
+
+      - uses: actions/checkout@v4
+
+      - name: Run root tests with ShellSpec as script
+        shell: sh
+        continue-on-error: true
+        run: |
+          export NO_COLOR="yes"
+          ${{ env.SHELLSPEC_PATH }} ./spec/xut_root_spec.sh --color --format documentation
+
+      - name: Run Tests with ShellSpec as script
+        shell: sh
+        continue-on-error: true
+        run: |
+          ls -l
+          pwd
+          if ! id -u runner >/dev/null 2>&1; then
+            useradd -m -s /bin/sh runner
+          fi
+          printf "Adding all required temporary directories"
+          mkdir -p /tmp/xut_tmp "$FORGEJO_WORKSPACE/.shellspec-tmp"
+          chown -R runner:runner /tmp/xut_tmp "$FORGEJO_WORKSPACE"
+
+          export SHELLSPEC_TMPDIR="$FORGEJO_WORKSPACE/.shellspec-tmp"
+
+          export HOME="$FORGEJO_WORKSPACE"
+
+          runuser -p runner -c 'cd "$FORGEJO_WORKSPACE" && "${{ env.SHELLSPEC_PATH }}" ./spec/xut_spec.sh --color --format documentation'
+          runuser -p runner -c 'cd "$FORGEJO_WORKSPACE" && "${{ env.SHELLSPEC_PATH }}" ./spec/xut_script_spec.sh --color --format documentation'
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: "Script_Run_Logs"
+          path: /workspace/AngMits/xut/.xut/logs/*.log
+
+      - name: Install xut via make
+        run:
+          make install
+
+      - name: Run Tests with ShellSpec as installed command
+        shell: sh
+        continue-on-error: true
+        run: |
+          echo "Running tests using path: ${{ env.SHELLSPEC_PATH }}"
+          export HOME="$FORGEJO_WORKSPACE"
+          runuser -p runner -c '
+            cd "$FORGEJO_WORKSPACE" &&
+            "${{ env.SHELLSPEC_PATH }}" ./spec/xut_installed_spec.sh --color --format documentation
+          '
