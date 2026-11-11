@@ -1,0 +1,89 @@
+name: "xut CI"
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/void-linux/void-glibc-full:latest
+
+    env:
+      SHELLSPEC_VERSION: "0.28.1"
+
+    steps:
+      - name: Install dependencies
+        shell: sh
+        run: |
+          xbps-install -Syu xbps
+          xbps-install -y git wget nodejs make
+
+      - name: Set up ShellSpec
+        shell: sh
+        run: |
+          set -eu
+          install_dir="/tmp/shellspec_install"
+          mkdir -p "$install_dir"
+          cd "$install_dir"
+
+          wget "https://github.com/shellspec/shellspec/archive/${SHELLSPEC_VERSION}.tar.gz" \
+            -O shellspec.tar.gz
+          tar xzf shellspec.tar.gz
+
+          shellspec_path="$install_dir/shellspec-${SHELLSPEC_VERSION}/shellspec"
+          echo "SHELLSPEC_PATH=$shellspec_path" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+
+      - name: Run root tests
+        shell: sh
+        continue-on-error: true
+        run: |
+          export NO_COLOR=yes
+          "$SHELLSPEC_PATH" ./spec/xut_root_spec.sh --color --format documentation
+
+      - name: Run repository tests as runner
+        shell: sh
+        continue-on-error: true
+        run: |
+          set -eu
+
+          if ! id runner >/dev/null 2>&1; then
+            useradd -m -s /bin/sh runner
+          fi
+
+          mkdir -p /tmp/xut_tmp "$GITHUB_WORKSPACE/.shellspec-tmp"
+          chown -R runner:runner /tmp/xut_tmp "$GITHUB_WORKSPACE"
+
+          runuser -u runner -- env \
+            HOME="$GITHUB_WORKSPACE" \
+            SHELLSPEC_TMPDIR="$GITHUB_WORKSPACE/.shellspec-tmp" \
+            sh -c 'cd "$1" && "$2" ./spec/xut_spec.sh --color --format documentation' \
+            sh "$GITHUB_WORKSPACE" "$SHELLSPEC_PATH"
+
+          runuser -u runner -- env \
+            HOME="$GITHUB_WORKSPACE" \
+            SHELLSPEC_TMPDIR="$GITHUB_WORKSPACE/.shellspec-tmp" \
+            sh -c 'cd "$1" && "$2" ./spec/xut_script_spec.sh --color --format documentation' \
+            sh "$GITHUB_WORKSPACE" "$SHELLSPEC_PATH"
+
+      - name: Upload script logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: Script_Run_Logs
+          path: .xut/logs/*.log
+          if-no-files-found: ignore
+
+      - name: Install xut
+        run: make install
+
+      - name: Run installed-command tests
+        shell: sh
+        continue-on-error: true
+        run: |
+          runuser -u runner -- env \
+            HOME="$GITHUB_WORKSPACE" \
+            sh -c 'cd "$1" && "$2" ./spec/xut_installed_spec.sh --color --format documentation' \
+            sh "$GITHUB_WORKSPACE" "$SHELLSPEC_PATH"
